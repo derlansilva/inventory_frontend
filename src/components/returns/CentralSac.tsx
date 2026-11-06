@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Headphones, FileText, Printer, ArrowRight, ArrowLeft, Layers, ShieldAlert, CheckCircle2, PlusCircle, Save, X, Plus, Trash2, Filter } from 'lucide-react';
+import { Search, Headphones, FileText, Printer, ArrowRight, ArrowLeft, Layers, ShieldAlert, PlusCircle, Save, Upload, Trash2, Box, MapPin } from 'lucide-react';
 import SapAlertModal from '../SapAlertModal';
+import { apiServices } from '../../services/apiServices';
 
 interface MovementLog {
   date: string;
@@ -29,8 +30,16 @@ interface ReturnItem {
   desc: string;
   noteQty: number;
   specificReason: string;
-  occurrenceQty: number;
   damagedQty: number;
+  batch: string;
+}
+
+interface InvoiceData {
+  nfNumber: string;
+  customerName: string;
+  salesOrg: string;
+  distributionChannel: string;
+  items: ReturnItem[];
 }
 
 const sacDatabase: Record<string, ProtocolItem> = {
@@ -44,8 +53,8 @@ const sacDatabase: Record<string, ProtocolItem> = {
     status: 'Em Análise SAC',
     date: '27/10/2026',
     items: [
-      { code: 'SC1005', desc: 'Dipirona Sódica 500mg (Cx 50)', qty: 5, problem: 'Caixa violada com avaria física' },
-      { code: 'SC1084', desc: 'Paracetamol 750mg (Cx 20)', qty: 2, problem: 'Falta de lacre de segurança' }
+      { code: '74321', desc: 'Dipirona Sódica 500mg/ML Sol Oral', qty: 5, problem: 'Caixa violada com avaria física' },
+      { code: '12550', desc: 'Amoxicilina 500mg 30 Capsulas', qty: 2, problem: 'Falta de lacre de segurança' }
     ],
     movements: [
       { date: '27/10/2026 09:30', trans: 'ZMM_RET (Recusa)', doc: 'PROT-9988', qty: '-7 UN', status: 'Processado / WMS', user: 'CONFERENTE_01' },
@@ -59,15 +68,18 @@ export default function CentralSac() {
   const [selected, setSelected] = useState<ProtocolItem | null>(null);
   const [noReturnFoundNf, setNoReturnFoundNf] = useState<string | null>(null);
   
-  // Estados de Navegação Interna
   const [viewingDetails, setViewingDetails] = useState<boolean>(false);
   const [isCreatingReturn, setIsCreatingReturn] = useState<boolean>(false);
 
-  // Estados do Formulário de Nova Devolução
-  const [newGeneralReason, setNewGeneralReason] = useState<string>('101 - Avaria de Transporte / Caixa Violada');
-  const [newReturnItems, setNewReturnItems] = useState<ReturnItem[]>([]);
+  const [manifestCode, setManifestCode] = useState<string>(() => {
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    return `GAM-${timeStr}`;
+  });
+  
+  const [globalReason, setGlobalReason] = useState<string>('101 - Avaria de Transporte / Caixa Violada');
+  const [invoicesList, setInvoicesList] = useState<InvoiceData[]>([]);
 
-  // Estados de Alerta Global
   const [alertOpen, setAlertOpen] = useState<boolean>(false);
   const [alertMessage, setAlertMessage] = useState<string>('');
   const [alertType, setAlertType] = useState<'success' | 'warning' | 'error' | 'info'>('info');
@@ -108,266 +120,325 @@ export default function CentralSac() {
     }
   };
 
-  // Iniciar criação de nova devolução para a NF pesquisada
-  const startCreatingReturn = (nf: string) => {
+  const startCreatingReturn = () => {
     setIsCreatingReturn(true);
     setNoReturnFoundNf(null);
-    setNewReturnItems([
-      { code: 'SC1005', desc: 'Dipirona Sódica 500mg (Cx 50)', noteQty: 100, specificReason: newGeneralReason, occurrenceQty: 10, damagedQty: 5 },
-      { code: 'SC1084', desc: 'Paracetamol 750mg (Cx 20)', noteQty: 50, specificReason: newGeneralReason, occurrenceQty: 5, damagedQty: 2 },
-      { code: 'SC1090', desc: 'Amoxicilina 500mg (Frasco)', noteQty: 30, specificReason: newGeneralReason, occurrenceQty: 2, damagedQty: 2 }
-    ]);
+    setInvoicesList([]);
+    
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    setManifestCode(`GAM-${timeStr}`);
   };
 
-  const handleSaveNewReturn = () => {
-    showAlert('Nova devolução gerada e gravada com sucesso no S/4HANA!', 'success');
-    setIsCreatingReturn(false);
-    setSearchQuery('');
+  const handleGlobalReasonChange = (newReason: string) => {
+    setGlobalReason(newReason);
+    setInvoicesList(prevInvoices => 
+      prevInvoices.map(inv => ({
+        ...inv,
+        items: inv.items.map(item => ({
+          ...item,
+          specificReason: newReason
+        }))
+      }))
+    );
+  };
+
+  const handleXmlUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(event.target?.result as string, "text/xml");
+          
+          const nfNumber = xmlDoc.querySelector("nNF")?.textContent || `NF-${Math.floor(10000 + Math.random() * 90000)}`;
+          const customerName = xmlDoc.querySelector("dest xNome")?.textContent || 'Cliente Diversos S/A';
+          
+          const detItens = xmlDoc.querySelectorAll("det");
+          const parsedItems: ReturnItem[] = [];
+
+          if (detItens.length > 0) {
+            detItens.forEach(det => {
+              parsedItems.push({
+                code: det.querySelector("cProd")?.textContent || '74321',
+                desc: det.querySelector("xProd")?.textContent || 'Produto Importado via XML',
+                noteQty: Number(det.querySelector("qCom")?.textContent || 10),
+                specificReason: globalReason,
+                damagedQty: 0,
+                batch: det.querySelector("nLote")?.textContent || 'S/L'
+              });
+            });
+          }
+
+          setInvoicesList(prev => [
+            ...prev.filter(inv => inv.nfNumber !== nfNumber),
+            { nfNumber, customerName, salesOrg: '1000', distributionChannel: '10', items: parsedItems }
+          ]);
+        } catch (err) {
+          showAlert('Erro ao processar o arquivo XML da Nota Fiscal.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const handleSaveNewReturn = async () => {
+    if (invoicesList.length === 0) {
+      showAlert('Importe pelo menos um arquivo XML de Nota Fiscal para gerar o romaneio.', 'warning');
+      return;
+    }
+
+    const payload = {
+      manifestCode: manifestCode,
+      invoices: invoicesList
+    };
+
+    try {
+      await apiServices.saveReturnManifest(payload);
+      showAlert(`Romaneio ${manifestCode} gerado e estoque de devolução atualizado!`, 'success');
+      setIsCreatingReturn(false);
+      setSearchQuery('');
+    } catch (error: any) {
+      console.error("Erro ao enviar romaneio:", error);
+      showAlert(`Erro ao gravar romaneio: ${error.message || 'Verifique a ligação com o backend.'}`, 'error');
+    }
   };
 
   return (
-    <div className="bg-[#E9ECEF] w-full p-2 font-sans text-xs text-gray-800 flex flex-col shadow-inner rounded  relative">
+    // O SEGREDO ESTÁ AQUI: fixed inset-0 (Prende o componente exatamente no tamanho da tela)
+    // e o top-[120px] (dá um espaço para o menu azul escuro do sistema ficar visível em cima)
+    <div className="fixed inset-0 top-[120px] bg-slate-100 flex flex-col font-sans text-xs text-slate-700 overflow-hidden z-10 rounded-t-xl shadow-sm">
       
-      <SapAlertModal 
-        isOpen={alertOpen}
-        message={alertMessage}
-        type={alertType}
-        onClose={() => setAlertOpen(false)}
-      />
+      <SapAlertModal isOpen={alertOpen} message={alertMessage} type={alertType} onClose={() => setAlertOpen(false)} />
 
-      {/* 1. BARRA DE TÍTULO CLÁSSICA SAP */}
-      <div className="bg-[#002B49] text-white px-3 py-1.5 flex items-center justify-between rounded-t shadow-xs">
+      {/* CABEÇALHO DO SISTEMA */}
+      <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center space-x-2">
-          <span className="font-mono bg-[#1E4D6B] px-1.5 py-0.2 rounded text-[10px] font-bold">ZMM_SAC</span>
-          <span className="font-semibold tracking-wide text-xs">Central SAC & Módulo de Gestão de Devoluções</span>
+          <Box className="w-5 h-5 text-[#002B49]" />
+          <h3 className="font-bold text-slate-800 text-lg tracking-tight">Gestão de Devoluções</h3>
+          <span className="text-xs text-slate-400 font-medium hidden md:inline-block ml-2 pl-2 border-l border-slate-300">SAC • ZMM_RET</span>
         </div>
-        <div className="flex items-center space-x-3 text-gray-300 text-[10px] font-mono">
-          <span>Mandante: 100</span>
-          <span>Usuário: OP_LOGISTICA</span>
+        <div className="flex items-center space-x-4 text-[11px] font-mono text-slate-500">
+          <div className="flex items-center space-x-1"><MapPin className="w-3.5 h-3.5" /> <span>Mandante: 100</span></div>
+          <div className="flex items-center space-x-1"><Headphones className="w-3.5 h-3.5" /> <span>OP_LOGISTICA</span></div>
         </div>
       </div>
 
-      {/* 2. BARRA DE PESQUISA SUPERIOR */}
-      <div className="bg-white border-x border-b border-gray-300 p-2.5 grid grid-cols-1 md:grid-cols-3 gap-3 shadow-xs items-center">
-        <div className="flex items-center space-x-2 md:col-span-2">
-          <label className="text-gray-600 font-bold whitespace-nowrap w-28 text-right">Protocolo / NFe:</label>
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Digite o Protocolo (ex: PROT-9988) ou NFe (ex: NF-45890)..." 
-            className="bg-red-50/50 border border-red-400 px-2.5 py-1 rounded font-mono font-bold text-blue-900 flex-1 focus:ring-1 focus:ring-blue-800 focus:outline-none text-[11px]"
-          />
+      {/* BARRA DE PESQUISA */}
+      <div className="bg-white border-b border-slate-200 p-3 px-4 flex gap-3 items-center justify-between shrink-0">
+        <div className="flex items-center space-x-2 w-full max-w-2xl">
+          <label className="text-slate-600 font-bold whitespace-nowrap text-xs uppercase tracking-wide">Consultar:</label>
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Protocolo (PROT-9988) ou NF..." 
+              className="w-full bg-slate-50 border border-slate-300 pl-9 pr-3 py-2 rounded font-mono text-xs text-slate-800 focus:ring-1 focus:ring-[#002B49] outline-none transition-all placeholder:text-slate-400"
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-end">
+        <div className="flex items-center gap-2 shrink-0">
+          <button 
+            onClick={startCreatingReturn}
+            className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded font-bold flex items-center space-x-1.5 transition-all text-xs"
+          >
+            <PlusCircle className="w-4 h-4 text-emerald-600" />
+            <span>Novo Romaneio</span>
+          </button>
           <button 
             onClick={handleSearch}
-            className="bg-[#002B49] hover:bg-blue-900 text-white px-5 py-1 rounded font-bold flex items-center space-x-1 cursor-pointer w-full md:w-auto justify-center shadow-xs"
+            className="bg-[#002B49] hover:bg-[#003d66] text-white px-5 py-2 rounded font-bold flex items-center space-x-1.5 transition-all text-xs"
           >
-            <Search className="w-3.5 h-3.5" />
-            <span>Consultar [F2]</span>
+            <Search className="w-4 h-4" />
+            <span>Consultar</span>
           </button>
         </div>
       </div>
 
-      {/* 3. CONTEÚDO PRINCIPAL */}
-      <div className="bg-white border-x border-b border-gray-300 p-4 shadow-xs space-y-4 min-h-[350px] mt-2 rounded-b">
+      {/* CONTEÚDO PRINCIPAL (Aqui o min-h-0 permite o flex-1 funcionar corretamente) */}
+      <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
         
         {isCreatingReturn ? (
-          /* MÓDULO PARA GERAR NOVA DEVOLUÇÃO COM BASE NA NOTA FISCAL */
-          <div className="space-y-4 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between border-b border-gray-300 pb-2">
-              <button 
-                onClick={() => setIsCreatingReturn(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded font-bold text-xs cursor-pointer flex items-center space-x-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Voltar</span>
-              </button>
-              <span className="font-mono font-bold text-green-800 text-xs bg-green-50 px-2 py-0.5 rounded border border-green-300">
-                Gerando Nova Devolução para: {searchQuery.toUpperCase()}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-3 rounded border border-gray-300 text-xs">
+          <div className="flex flex-col flex-1 min-h-0 pb-16"> {/* pb-16 garante que o conteúdo não fique oculto atrás do botão */}
+            
+            {/* BARRA DO ROMANEIO */}
+            <div className="bg-white border-b border-slate-200 p-2 px-4 flex flex-wrap items-center justify-between gap-2 shrink-0">
               <div className="flex items-center space-x-3">
-                <label className="w-36 font-medium text-gray-600">Cliente:</label>
-                <input type="text" readOnly value="CUS9999 - Drogaria Pacheco S/A (Filial Curitiba)" className="bg-gray-100 border border-gray-300 px-2 py-1 rounded flex-1 font-medium" />
-              </div>
-              <div className="flex items-center space-x-3">
-                <label className="w-36 font-medium text-gray-600">Motivo da Reclamação:</label>
-                <select 
-                  value={newGeneralReason} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNewGeneralReason(val);
-                    setNewReturnItems(newReturnItems.map(i => ({ ...i, specificReason: val })));
-                  }}
-                  className="bg-white border border-gray-300 px-2 py-1 rounded flex-1 font-semibold text-blue-900"
+                <button 
+                  onClick={() => setIsCreatingReturn(false)}
+                  className="text-slate-500 hover:text-slate-800 px-2 py-1 rounded font-bold text-xs transition-all flex items-center space-x-1"
                 >
-                  <option>101 - Avaria de Transporte / Caixa Violada</option>
-                  <option>102 - Divergência de Quantidade (Falta de Item)</option>
-                  <option>103 - Lote Vencido ou Incompatível</option>
-                  <option>104 - Cadeia Fria (Temperatura Incorreta)</option>
-                </select>
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Voltar</span>
+                </button>
+                <div className="h-4 w-px bg-slate-300"></div>
+                <div className="flex items-center space-x-1">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">Romaneio:</span>
+                  <input 
+                    type="text" 
+                    value={manifestCode} 
+                    onChange={(e) => setManifestCode(e.target.value)} 
+                    className="bg-slate-50 border border-slate-300 px-2 py-1 rounded font-mono font-bold text-[#002B49] text-xs w-28 focus:outline-none focus:border-[#002B49]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center space-x-1 bg-blue-50 border border-blue-100 px-2 py-1 rounded">
+                  <label className="text-[11px] font-bold text-blue-900 uppercase">Motivo:</label>
+                  <select 
+                    value={globalReason}
+                    onChange={(e) => handleGlobalReasonChange(e.target.value)}
+                    className="bg-transparent border-none font-semibold text-blue-900 text-[11px] focus:ring-0 outline-none w-48 cursor-pointer"
+                  >
+                    <option>101 - Avaria / Caixa Violada</option>
+                    <option>102 - Divergência (Falta)</option>
+                    <option>103 - Lote Vencido</option>
+                    <option>104 - Cadeia Fria</option>
+                  </select>
+                </div>
+
+                <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded font-bold text-xs cursor-pointer flex items-center space-x-1 shadow-sm transition-all">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Importar XML</span>
+                  <input type="file" multiple accept=".xml" onChange={handleXmlUpload} className="hidden" />
+                </label>
               </div>
             </div>
 
-            {/* TABELA DE ITENS DA NOVA DEVOLUÇÃO */}
-            <div className="space-y-2">
-              <h4 className="font-bold text-gray-700 uppercase tracking-wider text-[11px]">Itens e Quantidades para Devolução</h4>
-              <div className="overflow-y-auto max-h-[220px] border border-gray-300 rounded shadow-inner">
-                <table className="w-full text-left text-[11px] border-collapse font-sans">
-                  <thead className="bg-[#002B49] text-white font-semibold sticky top-0 z-10">
-                    <tr>
-                      <th className="p-2.5 border-r border-blue-900 w-10 text-center">#</th>
-                      <th className="p-2.5 border-r border-blue-900">Nº do Material</th>
-                      <th className="p-2.5 border-r border-blue-900">Descrição do Produto</th>
-                      <th className="p-2.5 border-r border-blue-900 text-center">Qtd da Nota</th>
-                      <th className="p-2.5 border-r border-blue-900">Motivo Específico</th>
-                      <th className="p-2.5 text-center">Qtd Avariada</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {newReturnItems.map((item, idx) => (
-                      <tr key={idx} className="bg-white hover:bg-blue-50/50">
-                        <td className="p-2.5 border-r border-gray-200 text-center text-gray-500 font-mono">{idx + 1}</td>
-                        <td className="p-2.5 border-r border-gray-200 font-mono font-bold text-blue-900">{item.code}</td>
-                        <td className="p-2.5 border-r border-gray-200 font-medium">{item.desc}</td>
-                        <td className="p-2.5 border-r border-gray-200 text-center font-mono">{item.noteQty}</td>
-                        <td className="p-2.5 border-r border-gray-200">
-                          <input 
-                            type="text" 
-                            value={item.specificReason}
-                            onChange={(e) => {
-                              const updated = [...newReturnItems];
-                              updated[idx].specificReason = e.target.value;
-                              setNewReturnItems(updated);
-                            }}
-                            className="w-full bg-white border border-gray-300 px-2 py-0.5 rounded text-xs focus:ring-1 focus:ring-blue-800"
-                          />
-                        </td>
-                        <td className="p-2.5 text-center">
-                          <input 
-                            type="number" 
-                            value={item.damagedQty}
-                            onChange={(e) => {
-                              const updated = [...newReturnItems];
-                              updated[idx].damagedQty = Number(e.target.value);
-                              setNewReturnItems(updated);
-                            }}
-                            className="w-16 bg-red-50 border border-red-300 text-red-700 font-bold px-1 py-0.5 rounded text-center font-mono mx-auto block text-xs"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* ÁREA DE NOTAS (ÚNICA PARTE DA TELA QUE VAI ROLAR) */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {invoicesList.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 border-2 border-dashed border-slate-300 rounded-lg bg-white/50 min-h-[200px]">
+                  <Upload className="w-6 h-6 text-slate-400" />
+                  <p className="text-xs font-bold text-slate-600">Aguardando XML</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-w-[1400px] mx-auto">
+                  <h4 className="font-bold text-slate-500 uppercase tracking-widest text-[10px] flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-[#002B49]" />
+                    Notas Importadas ({invoicesList.length})
+                  </h4>
 
-            <div className="flex justify-end pt-2">
-              <button 
-                onClick={handleSaveNewReturn}
-                className="bg-[#002B49] hover:bg-blue-900 text-white px-6 py-1.5 rounded font-bold text-xs shadow cursor-pointer flex items-center space-x-1.5"
-              >
-                <Save className="w-4 h-4" />
-                <span>Gravar Devolução no S/4HANA</span>
-              </button>
+                  {invoicesList.map((inv, invIdx) => (
+                    <div key={invIdx} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                      <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="bg-[#002B49] text-white px-2 py-0.5 rounded font-mono font-bold text-[10px]">NF: {inv.nfNumber}</span>
+                          <span className="text-slate-700 font-bold text-[11px]">{inv.customerName}</span>
+                        </div>
+                        <button 
+                          onClick={() => setInvoicesList(invoicesList.filter((_, i) => i !== invIdx))}
+                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <table className="w-full text-left text-[11px] border-collapse font-sans">
+                        <thead className="bg-white text-slate-500 border-b border-slate-200">
+                          <tr>
+                            <th className="px-3 py-1.5 font-bold uppercase text-[9px]">Material</th>
+                            <th className="px-3 py-1.5 font-bold uppercase text-[9px]">Descrição</th>
+                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] text-center">Qtd</th>
+                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] text-center">Lote</th>
+                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] w-48">Motivo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {inv.items.map((item, itemIdx) => (
+                            <tr key={itemIdx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-3 py-1 font-mono font-bold text-[#002B49]">{item.code}</td>
+                              <td className="px-3 py-1 text-slate-700 truncate max-w-[200px]" title={item.desc}>{item.desc}</td>
+                              <td className="px-3 py-1 text-center font-mono font-bold text-slate-800 bg-slate-50/50">{item.noteQty}</td>
+                              <td className="px-3 py-1 text-center font-mono text-slate-500">{item.batch}</td>
+                              <td className="px-3 py-1">
+                                <select 
+                                  value={item.specificReason}
+                                  onChange={(e) => {
+                                    const updated = [...invoicesList];
+                                    updated[invIdx].items[itemIdx].specificReason = e.target.value;
+                                    setInvoicesList(updated);
+                                  }}
+                                  className="w-full bg-white border border-slate-300 px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-700 focus:ring-1 focus:ring-[#002B49] outline-none"
+                                >
+                                  <option>101 - Avaria de Transporte</option>
+                                  <option>102 - Divergência (Falta de Item)</option>
+                                  <option>103 - Lote Vencido</option>
+                                  <option>104 - Cadeia Fria</option>
+                                </select>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : noReturnFoundNf ? (
-          /* AVISO DE NF SEM DEVOLUÇÃO COM BOTÃO PARA CRIAR */
-          <div className="py-16 text-center space-y-4 animate-in fade-in duration-150 max-w-lg mx-auto">
-            <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg space-y-2">
-              <ShieldAlert className="w-10 h-10 mx-auto text-amber-600" />
-              <h3 className="font-bold text-amber-900 text-sm">Nenhuma Devolução Encontrada para esta Nota Fiscal</h3>
-              <p className="text-xs text-gray-600">
-                A Nota Fiscal <strong className="font-mono text-blue-900">{noReturnFoundNf}</strong> existe no sistema S/4HANA, mas ainda não possui nenhum processo de devolução ou chamado SAC aberto.
-              </p>
-            </div>
-            <div>
-              <button 
-                onClick={() => startCreatingReturn(noReturnFoundNf)}
-                className="bg-green-700 hover:bg-green-800 text-white px-5 py-2 rounded font-bold text-xs shadow cursor-pointer flex items-center space-x-2 mx-auto"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Criar Nova Devolução para {noReturnFoundNf}</span>
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <div className="bg-white border border-amber-200 p-6 rounded-lg max-w-sm text-center shadow-sm">
+              <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <h3 className="font-bold text-amber-900 text-sm mb-1">Nenhum Romaneio</h3>
+              <p className="text-[11px] text-slate-500 mb-4">A NF <strong className="font-mono">{noReturnFoundNf}</strong> não possui devoluções.</p>
+              <button onClick={startCreatingReturn} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded font-bold text-xs shadow-sm">
+                Criar Romaneio
               </button>
             </div>
           </div>
         ) : !selected ? (
-          <div className="py-24 text-center text-gray-400 font-mono">
-            <Headphones className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm font-semibold text-gray-600">Nenhum protocolo consultado.</p>
-            <p className="text-xs text-gray-500 mt-1">Informe o número do protocolo ou Nota Fiscal no campo superior e pressione <strong className="text-gray-700">Enter</strong>.</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-4 text-slate-400">
+            <Headphones className="w-10 h-10 text-slate-300 mb-2" />
+            <p className="text-xs font-bold text-slate-500">Aguardando consulta</p>
           </div>
         ) : !viewingDetails ? (
-          /* VISÃO GERAL DO PROTOCOLO NO SAC */
-          <div className="space-y-4 animate-in fade-in duration-150">
-            <div className="space-y-2">
-              <h3 className="font-bold text-gray-700 border-b border-gray-200 pb-1 uppercase tracking-wide text-xs flex items-center space-x-1">
-                <FileText className="w-3.5 h-3.5 text-blue-900" />
-                <span>Dados do Chamado SAC ({selected.protocol})</span>
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 pt-1">
-                <div className="flex items-center space-x-3">
-                  <label className="w-32 text-right font-medium text-gray-600 whitespace-nowrap">Protocolo:</label>
-                  <input type="text" readOnly value={selected.protocol} className="bg-gray-100 border border-gray-300 px-2.5 py-1 rounded font-mono font-bold text-blue-900 w-full text-xs" />
+          <div className="p-4 flex-1 overflow-y-auto animate-in fade-in">
+            <div className="max-w-3xl mx-auto space-y-3">
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
+                  <h3 className="font-bold text-slate-800 text-xs">Detalhes do Chamado {selected.protocol}</h3>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <label className="w-32 text-right font-medium text-gray-600 whitespace-nowrap">Nota Fiscal:</label>
-                  <input type="text" readOnly value={selected.nf} className="bg-gray-100 border border-gray-300 px-2.5 py-1 rounded font-mono font-bold text-purple-900 w-full text-xs" />
-                </div>
-                <div className="md:col-span-2 flex items-center space-x-3">
-                  <label className="w-32 text-right font-medium text-gray-600 whitespace-nowrap">Cliente:</label>
-                  <input type="text" readOnly value={selected.customer} className="bg-gray-100 border border-gray-300 px-2.5 py-1 rounded font-medium w-full text-xs text-gray-900" />
-                </div>
-                <div className="flex items-center space-x-3">
-                  <label className="w-32 text-right font-medium text-gray-600 whitespace-nowrap">Responsável:</label>
-                  <input type="text" readOnly value={selected.responsible} className="bg-blue-50/50 border border-blue-200 px-2.5 py-1 rounded font-mono font-bold text-blue-900 w-full text-xs" />
-                </div>
-                <div className="flex items-center space-x-3">
-                  <label className="w-32 text-right font-medium text-gray-600 whitespace-nowrap">Status:</label>
-                  <input type="text" readOnly value={selected.status} className="bg-amber-50 border border-amber-300 px-2.5 py-1 rounded font-bold text-amber-900 w-full text-xs" />
-                </div>
-                <div className="flex items-center space-x-3 md:col-span-2 bg-amber-50 p-2 rounded border border-amber-300">
-                  <label className="w-32 text-right font-bold text-amber-900 whitespace-nowrap">Motivo da Devolução:</label>
-                  <div className="flex-1 flex items-center justify-between">
-                    <span className="font-mono font-bold text-amber-950">{selected.reasonCode} - {selected.reasonDesc}</span>
-                    <button 
-                      onClick={() => setViewingDetails(true)}
-                      className="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 rounded font-bold text-[11px] shadow-xs cursor-pointer flex items-center space-x-1"
-                    >
-                      <span>Ver Detalhes, Motivos & Movimentações</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Cliente</span> <span className="font-medium text-slate-700">{selected.customer}</span></div>
+                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Nota Fiscal</span> <span className="font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">{selected.nf}</span></div>
+                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Responsável</span> <span className="font-medium text-slate-700">{selected.responsible}</span></div>
+                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Status</span> <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{selected.status}</span></div>
+                  
+                  <div className="md:col-span-2 bg-amber-50/50 p-2 rounded border border-amber-100 flex items-center justify-between mt-1">
+                    <span className="font-mono text-[11px] font-bold text-slate-700">{selected.reasonCode} - {selected.reasonDesc}</span>
+                    <button onClick={() => setViewingDetails(true)} className="text-[#002B49] hover:text-blue-800 font-bold text-[10px] flex items-center gap-1">
+                      Ver Movimentações <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2 pt-2">
-              <h4 className="font-bold text-gray-700 uppercase tracking-wider text-[11px]">Itens Reclamados</h4>
-              <div className="border border-gray-300 rounded overflow-hidden">
-                <table className="w-full text-left text-[11px] font-sans border-collapse">
-                  <thead className="bg-[#002B49] text-white font-semibold">
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                     <tr>
-                      <th className="p-2 border-r border-blue-900">Material</th>
-                      <th className="p-2 border-r border-blue-900">Descrição</th>
-                      <th className="p-2 border-r border-blue-900 text-center">Quantidade</th>
-                      <th className="p-2">Relato do Problema</th>
+                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Material</th>
+                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Descrição</th>
+                      <th className="px-4 py-2 font-bold text-[10px] uppercase text-center">Qtd</th>
+                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Relato</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-slate-100">
                     {selected.items.map((item, idx) => (
-                      <tr key={idx} className="bg-white hover:bg-blue-50/40">
-                        <td className="p-2 border-r border-gray-200 font-mono font-bold text-blue-900">{item.code}</td>
-                        <td className="p-2 border-r border-gray-200 font-medium">{item.desc}</td>
-                        <td className="p-2 border-r border-gray-200 font-mono font-bold text-center text-red-600">{item.qty} UN</td>
-                        <td className="p-2 text-gray-700">{item.problem}</td>
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-4 py-2 font-mono font-bold text-[#002B49]">{item.code}</td>
+                        <td className="px-4 py-2 text-slate-700 font-medium">{item.desc}</td>
+                        <td className="px-4 py-2 text-center font-mono font-bold text-red-600 bg-red-50/20">{item.qty}</td>
+                        <td className="px-4 py-2 text-slate-500 text-[11px]">{item.problem}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -376,58 +447,38 @@ export default function CentralSac() {
             </div>
           </div>
         ) : (
-          /* TELA DE DETALHES DE MOTIVOS E MOVIMENTAÇÕES */
-          <div className="space-y-4 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between border-b border-gray-300 pb-2">
-              <button 
-                onClick={() => setViewingDetails(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded font-bold text-xs cursor-pointer flex items-center space-x-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Voltar ao Chamado SAC</span>
-              </button>
-              <span className="font-mono font-bold text-blue-900 text-xs">Protocolo: {selected.protocol} | NFe: {selected.nf}</span>
-            </div>
-
-            <div className="bg-blue-50/50 p-3 rounded border border-blue-200 space-y-2">
-              <h4 className="font-bold text-blue-900 uppercase tracking-wide text-xs flex items-center space-x-1">
-                <ShieldAlert className="w-4 h-4 text-amber-700" />
-                <span>Detalhamento do Motivo da Devolução & Responsável</span>
-              </h4>
-              <div className="grid grid-cols-2 gap-4 font-mono text-xs">
-                <div><strong>Código SAP do Motivo:</strong> <span className="text-red-700 font-bold">{selected.reasonCode}</span></div>
-                <div><strong>Descrição Oficial:</strong> {selected.reasonDesc}</div>
-                <div className="col-span-2"><strong>Responsável Técnico / Operacional:</strong> <span className="text-blue-900 font-bold">{selected.responsible}</span></div>
+          <div className="p-4 flex-1 overflow-y-auto animate-in fade-in">
+            <div className="max-w-3xl mx-auto space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => setViewingDetails(false)} className="text-slate-500 hover:text-slate-800 font-bold text-[11px] flex items-center gap-1">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+                </button>
+                <span className="font-mono text-[10px] text-slate-400 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
+                  {selected.protocol} | {selected.nf}
+                </span>
               </div>
-            </div>
 
-            <div className="space-y-2 pt-2">
-              <h4 className="font-bold text-gray-700 uppercase tracking-wider text-[11px] flex items-center space-x-1">
-                <Layers className="w-3.5 h-3.5 text-blue-900" />
-                <span>Histórico de Movimentações WMS Relacionadas ao Motivo</span>
-              </h4>
-
-              <div className="overflow-y-auto max-h-[220px] border border-gray-300 rounded shadow-inner">
-                <table className="w-full text-left text-[11px] border-collapse font-sans">
-                  <thead className="bg-[#002B49] text-white font-semibold sticky top-0 z-10">
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                     <tr>
-                      <th className="p-2.5 border-r border-blue-900">Data / Hora</th>
-                      <th className="p-2.5 border-r border-blue-900">Transação WMS</th>
-                      <th className="p-2.5 border-r border-blue-900">Documento</th>
-                      <th className="p-2.5 border-r border-blue-900 text-center">Quantidade</th>
-                      <th className="p-2.5 border-r border-blue-900">Status WMS</th>
-                      <th className="p-2.5">Responsável / Utilizador</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Data/Hora</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Transação</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Doc</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase text-center">Qtd</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Status</th>
+                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Usuário</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 font-mono">
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                     {selected.movements.map((mov, idx) => (
-                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50/50' : 'bg-[#F4F6F8] hover:bg-blue-50/50'}>
-                        <td className="p-2.5 border-r border-gray-200 text-gray-600">{mov.date}</td>
-                        <td className="p-2.5 border-r border-gray-200 font-bold text-blue-900">{mov.trans}</td>
-                        <td className="p-2.5 border-r border-gray-200 text-gray-800">{mov.doc}</td>
-                        <td className="p-2.5 border-r border-gray-200 text-center font-bold text-red-600">{mov.qty}</td>
-                        <td className="p-2.5 border-r border-gray-200 text-amber-900 font-bold">{mov.status}</td>
-                        <td className="p-2.5 text-blue-900 font-bold">{mov.user}</td>
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 text-slate-500">{mov.date}</td>
+                        <td className="px-3 py-2 font-bold text-[#002B49]">{mov.trans}</td>
+                        <td className="px-3 py-2 text-slate-700">{mov.doc}</td>
+                        <td className="px-3 py-2 text-center font-bold text-red-600">{mov.qty}</td>
+                        <td className="px-3 py-2 text-amber-700 font-bold">{mov.status}</td>
+                        <td className="px-3 py-2 text-slate-600">{mov.user}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -436,24 +487,20 @@ export default function CentralSac() {
             </div>
           </div>
         )}
-
       </div>
-
-      {/* 4. RODAPÉ */}
-      <div className="bg-[#F8F9FA] border-x border-b border-gray-300 px-3 py-2 flex items-center justify-between rounded-b">
-        <span className="text-[10px] text-gray-500 font-mono">Status: Central SAC Online • Geração de Novas Devoluções Ativa</span>
-        <button 
-          onClick={() => {
-            if (!selected) showAlert('Nenhum protocolo selecionado para imprimir.', 'warning');
-            else showAlert(`Imprimindo relatório do protocolo ${selected.protocol}...`, 'success');
-          }}
-          className="bg-[#002B49] hover:bg-blue-900 text-white px-4 py-1 rounded font-bold shadow-xs transition cursor-pointer flex items-center space-x-1 text-[11px]"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span>Imprimir / Exportar [F8]</span>
-        </button>
-      </div>
-
+{/* BOTÃO FIXO GLOBAL (Ajustado para ficar fino como o botão de Importar) */}
+      {isCreatingReturn && (
+        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-2 px-6 flex justify-end shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
+          <button 
+            onClick={handleSaveNewReturn}
+            disabled={invoicesList.length === 0}
+            className="bg-[#002B49] hover:bg-[#003d66] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>Gravar Romaneio </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
