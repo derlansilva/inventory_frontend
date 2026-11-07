@@ -45,5 +45,40 @@ export const apiServices = {
     }
   },
 
-  
+  createReceiving: async (data: any) => {
+    const response = await api.post('/receiving/create', data);
+    return response.data;
+  },
+
+
+
+  getReceivingManifests: async () => {
+    try {
+      const response = await api.get('/receiving/manifests'); // TEM QUE SER GET
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar manifestos:", error);
+      throw error;
+    }
+  },
+
+  // Envia o XML (POST)
+  uploadXml: async (receivingCode: string, invoiceNumber: string, xmlData: any) => {
+    try {
+      const response = await api.post(`/receiving/upload-xml/${receivingCode}/${invoiceNumber}`, xmlData);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao enviar XML:", error);
+      throw error;
+    }
+  },
+  getInvoiceForScanning: async (invoiceNumber: string) => {
+    try {
+      const response = await api.get(`/receiving/scan-invoice/${invoiceNumber}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar NF:", error);
+      throw error;
+    }
+  }
 };

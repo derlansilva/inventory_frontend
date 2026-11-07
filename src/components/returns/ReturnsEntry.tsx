@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, X, Plus, Trash2, Search, Filter, MessageSquare, Layers, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, X, Search, ShieldAlert, Building2, CheckCircle2, AlertCircle, Layers, DollarSign } from 'lucide-react';
 import SapAlertModal from '../SapAlertModal';
 import { apiServices } from '../../services/apiServices';
 
@@ -13,35 +13,24 @@ interface ReturnItem {
   checkedQty: number;
   damagedQty: number;
   batch?: string;
-  expiryDate?: string;
-  disposition?: string;
-}
-
-interface TimelineEvent {
-  step: string;
-  authorOrLocation: string;
-  timestamp: string;
-  status: 'completed' | 'current' | 'pending';
 }
 
 export default function ReturnsEntry() {
-  const [nfInput, setNfInput] = useState<string>('');
+  const [invoiceInput, setInvoiceInput] = useState<string>('');
   const [manifesto, setManifesto] = useState<string>(''); 
-  const [customer, setCustomer] = useState<string>('');
   const [manifestStatus, setManifestStatus] = useState<string>('Aguardando Entrada');
   
-  const [salesOrg, setSalesOrg] = useState<string>('');
-  const [distributionChannel, setDistributionChannel] = useState<string>('');
-  const [generalReason, setGeneralReason] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [companyCnpj, setCompanyCnpj] = useState<string>('');
+  const [totalValue, setTotalValue] = useState<string>('');
+
+  const [ocorrenciaMotivo, setOcorrenciaMotivo] = useState<string>('352 - Falta de Mercadoria (Retornou)');
+  const [ocorrenciaSetor, setOcorrenciaSetor] = useState<string>('LOGISTICA');
+  const [ocorrenciaObs, setOcorrenciaObs] = useState<string>('');
 
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
-
-  const [activeTab, setActiveTab] = useState<'items' | 'texts' | 'batch' | 'history'>('items');
-
-  const [driverComments, setDriverComments] = useState<string>('');
-  const [sacNotes, setSacNotes] = useState<string>('');
-  const [timelineHistory, setTimelineHistory] = useState<TimelineEvent[]>([]);
+  const [activeTab, setActiveTab] = useState<'items' | 'batch'>('items');
 
   const [alertOpen, setAlertOpen] = useState<boolean>(false);
   const [alertMessage, setAlertMessage] = useState<string>('');
@@ -55,121 +44,94 @@ export default function ReturnsEntry() {
 
   const handleLoadInvoice = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      const query = nfInput.trim().toUpperCase();
+      const query = invoiceInput.trim().toUpperCase();
       
       if (!query) {
-        showAlert('Por favor, informe o número do Romaneio.', 'warning');
+        showAlert('Por favor, informe o número da NF.', 'warning');
         return;
       }
 
       try {
-        // Se o utilizador digitou apenas "8923", adicionamos "ROM-" para coincidir com a BD ("ROM-8923")
-        const formattedCode = query.startsWith('ROM-') ? query : `ROM-${query}`;
-        
-        const data = await apiServices.getManifestByCode(formattedCode);
-       console.log("OBJETO COMPLETO DO BACKEND:", data);
-console.log("CHAVES DISPONÍVEIS:", Object.keys(data));
+        const data = await apiServices.getInvoiceForScanning(query);
 
-
-        setManifesto(data.manifestCode || formattedCode);
-        setManifestStatus(data.status || 'Romaneio em Aberto');
+        setManifesto(data.receivingCode || 'REC-AGUARDANDO');
+        setCompanyName(data.customerName || 'Empresa Não Identificada');
+        setCompanyCnpj(data.customerCnpj || '00.000.000/0000-00');
+        setTotalValue(data.totalValue ? `R$ ${data.totalValue.toFixed(2)}` : 'R$ 0,00');
         
-        setCustomer(data.customerName || 'CUS9999 - Cliente Cadastrado');
-        setSalesOrg(data.salesOrg || '2000 - Pharma Curitiba Logística');
-
-       let mappedItems: ReturnItem[] = [];
+        const totalScanned = data.items.reduce((acc: number, item: any) => acc + (item.scannedQuantity || 0), 0);
+        const totalExpected = data.items.reduce((acc: number, item: any) => acc + item.noteQuantity, 0);
         
-        if (data.invoices && Array.isArray(data.invoices)) {
-          data.invoices.forEach((inv: any) => {
-            const itemsList = inv.items || inv.returnItemEntities || inv.returnItems || [];
-            
-            itemsList.forEach((item: any) => {
-              mappedItems.push({
-                id: item.id,
-                // Varre todas as hipóteses possíveis de nomes que o backend possa estar a usar para o código do material
-                code: item.materialCode || item.code || item.productCode || item.sku || item.itemCode || `MAT-${item.id}`,
-                desc: item.description || item.desc || item.productName || 'MALBEC DESODORANTE COLONIA 100ML',
-                nfNumber: inv.nfNumber || formattedCode,
-                noteQty: item.noteQty ?? item.quantity ?? 1,
-                specificReason: item.specificReason || '352 - Falta Parcial',
-                checkedQty: item.checkedQty ?? 0,
-                damagedQty: item.damagedQty ?? 0,
-                batch: item.batch || 'LOTE-EMS-880',
-                expiryDate: item.expiryDate || '2028-12-31',
-                disposition: item.disposition || 'DISPONIVEL'
-              });
-            });
-          });
+        if (totalScanned === totalExpected) {
+          setManifestStatus('Conferido / Finalizado');
+        } else if (totalScanned > 0) {
+          setManifestStatus(`Em Conferência (Faltam ${totalExpected - totalScanned} itens)`);
+        } else {
+          setManifestStatus('Aguardando Conferência');
         }
+
+        let mappedItems: ReturnItem[] = data.items.map((item: any) => ({
+          id: item.id,
+          code: item.materialCode,
+          desc: item.description,
+          nfNumber: data.invoiceNumber,
+          noteQty: item.noteQuantity,
+          specificReason: ocorrenciaMotivo,
+          checkedQty: item.scannedQuantity || 0,
+          damagedQty: 0,
+          batch: item.batch
+        }));
 
         setReturnItems(mappedItems);
         setSelectedRowIndex(mappedItems.length > 0 ? 0 : null);
 
       } catch (error) {
         console.error(error);
-        showAlert(`Romaneio "${query}" não encontrado no servidor.`, 'error');
+        showAlert(`NF "${query}" não encontrada ou XML não importado.`, 'error');
         setReturnItems([]);
+        setCompanyName('');
+        setCompanyCnpj('');
+        setTotalValue('');
       }
     }
   };
 
-  const handleInsertRow = () => {
-    const newItem: ReturnItem = {
-      code: 'SC2001',
-      desc: 'Ibuprofeno 600mg (Cx 30 Comprimidos)',
-      nfNumber: nfInput.trim().toUpperCase() || '47845',
-      noteQty: 4,
-      specificReason: generalReason || 'Geral',
-      checkedQty: 0,
-      damagedQty: 0,
-      batch: 'LOT-2026C',
-      expiryDate: '2029-01-10',
-      disposition: 'Área de Quarentena (Q-01)'
-    };
-    setReturnItems([...returnItems, newItem]);
-    setSelectedRowIndex(returnItems.length);
-  };
-
-  const handleDeleteRow = () => {
-    if (selectedRowIndex === null || selectedRowIndex < 0 || selectedRowIndex >= returnItems.length) {
-      showAlert('Selecione uma linha na tabela para eliminar.', 'warning');
-      return;
-    }
-    const updated = returnItems.filter((_, idx) => idx !== selectedRowIndex);
-    setReturnItems(updated);
-    setSelectedRowIndex(updated.length > 0 ? Math.max(0, selectedRowIndex - 1) : null);
-  };
-
   const handleCancel = () => {
-    setNfInput('');
+    setInvoiceInput('');
     setManifesto('');
-    setCustomer('');
-    setSalesOrg('');
-    setDistributionChannel('');
-    setGeneralReason('');
+    setCompanyName('');
+    setCompanyCnpj('');
+    setTotalValue('');
     setReturnItems([]);
     setManifestStatus('Aguardando Entrada');
-    setDriverComments('');
-    setSacNotes('');
-    setTimelineHistory([]);
     setSelectedRowIndex(null);
   };
 
   const handleSave = async () => {
     if (!manifesto) {
-      showAlert('Nenhum romaneio ativo para gravação.', 'warning');
+      showAlert('Nenhuma NF ativa para gravação.', 'warning');
       return;
     }
 
     try {
       const payload = {
         manifestCode: manifesto,
-        status: 'Finalizado'
+        status: 'Finalizado',
+        ocorrencia: {
+          motivoGeral: ocorrenciaMotivo,
+          setor: ocorrenciaSetor,
+          observacao: ocorrenciaObs,
+          itens: returnItems.map(i => ({
+            materialCode: i.code,
+            motivoIndividual: i.specificReason,
+            damagedQty: i.damagedQty
+          }))
+        }
       };
       
       await apiServices.saveManifestBackend(payload);
-      setManifestStatus('Finalizado / Gravado no S/4HANA');
-      showAlert('Ocorrências e devoluções gravadas com sucesso!', 'success');
+      setManifestStatus('Finalizado / Gravado');
+      showAlert('Ocorrências gravadas com sucesso!', 'success');
     } catch (error) {
       console.error(error);
       showAlert('Erro ao gravar os dados no servidor.', 'error');
@@ -177,174 +139,209 @@ console.log("CHAVES DISPONÍVEIS:", Object.keys(data));
   };
 
   return (
-    <div className="bg-gray-100 w-full py-4 px-6 font-sans text-xs text-gray-800 flex flex-col space-y-3">
+    <div className="bg-[#E9ECEF] w-full py-4 px-6 font-sans text-xs text-gray-800 flex flex-col space-y-4">
       
-      <SapAlertModal 
-        isOpen={alertOpen}
-        message={alertMessage}
-        type={alertType}
-        onClose={() => setAlertOpen(false)}
-      />
+      <SapAlertModal isOpen={alertOpen} message={alertMessage} type={alertType} onClose={() => setAlertOpen(false)} />
 
-      {/* 1. BARRA DE TÍTULO CLÁSSICA SAP GUI */}
-      <div className="bg-[#002B49] text-white px-4 py-1.5 flex items-center justify-between shadow-xs">
+      {/* 1. HEADER / TOOLBAR */}
+      <div className="bg-white border border-gray-300 rounded shadow-sm p-2 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <span className="font-mono bg-[#1E4D6B] px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider">ZMM_RET</span>
-          <span className="font-semibold tracking-wide text-xs">Visão Geral de Lançamento de Devoluções & Reclamações de Clientes</span>
+          <button onClick={handleSave} className="bg-[#002B49] hover:bg-blue-900 text-white px-4 py-1.5 rounded font-bold flex items-center space-x-1.5 shadow transition">
+            <Save className="w-3.5 h-3.5" />
+            <span>Gravar</span>
+          </button>
+          <button onClick={handleCancel} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded font-bold flex items-center space-x-1.5 shadow-sm transition">
+            <X className="w-3.5 h-3.5 text-red-600" />
+            <span>Cancelar</span>
+          </button>
         </div>
-        <div className="flex items-center space-x-3 text-gray-300 text-[10px] font-mono">
-          <span>Mandante: 100</span>
-          <span>Utilizador: OP_LOGISTICA</span>
+        <div className="text-gray-500 font-mono text-[10px]">
+          Transação: ZMM_RET / VA01
         </div>
       </div>
 
-      {/* 2. BARRA DE FERRAMENTAS SUPERIOR */}
-      <div className="bg-transparent px-0 py-1 flex items-center justify-between">
-        <div className="flex items-center space-x-1">
-          <button onClick={handleSave} className="p-1 hover:bg-gray-200/60 rounded text-gray-700 cursor-pointer flex items-center space-x-1" title="Gravar (Ctrl+S)">
-            <Save className="w-3.5 h-3.5 text-blue-900" />
-            <span className="text-[11px] font-medium">Gravar</span>
-          </button>
-
-          <button onClick={handleCancel} className="p-1 hover:bg-gray-200/60 rounded text-gray-700 cursor-pointer flex items-center space-x-1" title="Cancelar">
-            <X className="w-3.5 h-3.5 text-red-700" />
-            <span className="text-[11px] font-medium">Cancelar</span>
-          </button>
-
-          <div className="h-3.5 w-[1px] bg-gray-300 mx-1"></div>
-
-          <button onClick={handleInsertRow} className="p-1 hover:bg-gray-200/60 rounded text-gray-700 cursor-pointer flex items-center space-x-1" title="Inserir">
-            <Plus className="w-3.5 h-3.5 text-green-700" />
-            <span className="text-[11px] font-medium">Inserir</span>
-          </button>
-
-          <button onClick={handleDeleteRow} className="p-1 hover:bg-gray-200/60 rounded text-gray-700 cursor-pointer flex items-center space-x-1" title="Eliminar">
-            <Trash2 className="w-3.5 h-3.5 text-gray-600" />
-            <span className="text-[11px] font-medium">Eliminar</span>
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-500 font-mono text-[10px]">Transação:</span>
-          <input type="text" readOnly value="ZMM_RET / VA01" className="bg-white/80 border border-gray-300 px-2 py-0.5 rounded text-center font-mono text-[11px] w-28 text-gray-600 focus:outline-none" />
-        </div>
-      </div>
-
-      {/* 3. CABEÇALHO DE DADOS MESTRES & STATUS */}
-      <div className="bg-transparent p-0 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-        <div className="flex items-center space-x-3">
-          <label className="w-40 text-right font-semibold text-[#002B49] whitespace-nowrap">Romaneio:</label>
-          <input 
-            type="text" 
-            value={nfInput} 
-            onChange={(e) => setNfInput(e.target.value)}
-            onKeyDown={handleLoadInvoice}
-            placeholder="Digite o código do Romaneio e Enter..." 
-            className="flex-1 bg-red-50/30 border border-red-400 px-2.5 py-1 rounded font-mono text-xs focus:ring-1 focus:ring-blue-800 focus:outline-none shadow-inner text-blue-900 font-bold"
-          />
-        </div>
-
-        {/* Indicador de Status Visual do Romaneio */}
-        <div className="flex items-center space-x-3">
-          <label className="w-40 text-right font-semibold text-[#002B49] whitespace-nowrap">Status Carga:</label>
-          <div className="flex-1 flex items-center space-x-2 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-            <span className="font-mono font-bold text-amber-800 text-[11px]">{manifestStatus}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <label className="w-40 text-right font-semibold text-[#002B49] whitespace-nowrap">Cliente:</label>
-          <input type="text" value={customer} readOnly placeholder="Aguardando carregamento..." className="flex-1 bg-white border border-gray-300 px-2.5 py-1 rounded font-medium text-gray-700 focus:outline-none truncate" />
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <label className="w-40 text-right font-semibold text-[#002B49] whitespace-nowrap">Org. de Vendas:</label>
-          <input type="text" value={salesOrg} onChange={(e) => setSalesOrg(e.target.value)} placeholder="Aguardando carregamento..." className="flex-1 bg-white border border-gray-300 px-2.5 py-1 rounded text-gray-700" />
-        </div>
-      </div>
-
-      {/* 4. ABAS DE NAVEGAÇÃO INTERNAS */}
-      <div className="bg-transparent px-0 pt-2 flex space-x-1">
-        <button onClick={() => setActiveTab('items')} className={`px-4 py-1 font-bold rounded-t text-xs transition border-t-2 cursor-pointer ${activeTab === 'items' ? 'bg-white border-[#002B49] text-gray-800 shadow-xs' : 'bg-gray-200/75 border-transparent text-gray-600'}`}>
-          Visão Geral de Itens
-        </button>
-        <button onClick={() => setActiveTab('texts')} className={`px-4 py-1 font-bold rounded-t text-xs transition border-t-2 cursor-pointer flex items-center space-x-1 ${activeTab === 'texts' ? 'bg-white border-[#002B49] text-gray-800 shadow-xs' : 'bg-gray-200/75 border-transparent text-gray-600'}`}>
-          <MessageSquare className="w-3 h-3 text-[#002B49]" />
-          <span>Textos & Comentários</span>
-        </button>
-        <button onClick={() => setActiveTab('batch')} className={`px-4 py-1 font-bold rounded-t text-xs transition border-t-2 cursor-pointer flex items-center space-x-1 ${activeTab === 'batch' ? 'bg-white border-[#002B49] text-gray-800 shadow-xs' : 'bg-gray-200/75 border-transparent text-gray-600'}`}>
-          <Layers className="w-3 h-3 text-amber-700" />
-          <span>Classificação & Lote</span>
-        </button>
-        <button onClick={() => setActiveTab('history')} className={`px-4 py-1 font-bold rounded-t text-xs transition border-t-2 cursor-pointer flex items-center space-x-1 ${activeTab === 'history' ? 'bg-white border-[#002B49] text-gray-800 shadow-xs' : 'bg-gray-200/75 border-transparent text-gray-600'}`}>
-          <Clock className="w-3 h-3 text-blue-800" />
-          <span>Histórico & Rastreio</span>
-        </button>
-      </div>
-
-      {/* 5. CONTEÚDO DAS ABAS */}
-      <div className="bg-white border border-gray-300 p-4 shadow-xs rounded space-y-3">
+      {/* 2. DOIS PAINÉIS (NF E OCORRÊNCIA) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {activeTab === 'items' && (
-          <div className="space-y-2">
-            <div className="bg-gray-100 border border-gray-300 p-1.5 px-3 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] text-gray-600 font-mono font-bold">
-                  {manifesto ? `Romaneio: ${manifesto}` : 'Romaneio Vinculado: Aguardando...'}
-                </span>
-                <span className="text-[10px] text-gray-400">|</span>
-                <span className="text-[10px] text-gray-500 font-mono">Total de Linhas: {returnItems.length}</span>
+        {/* PAINEL ESQUERDO: DADOS DA NOTA FISCAL */}
+        <div className="bg-white border border-gray-300 rounded shadow-sm flex flex-col">
+          <div className="bg-gray-50 border-b border-gray-300 p-2 px-3 rounded-t flex items-center space-x-2">
+            <Search className="w-3.5 h-3.5 text-blue-800" />
+            <h3 className="text-[11px] font-bold text-gray-700 uppercase">Dados da Nota Fiscal</h3>
+          </div>
+          
+          <div className="p-4 space-y-3 flex-1">
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">Nota Fiscal</label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-2" />
+                <input 
+                  type="text" 
+                  value={invoiceInput} 
+                  onChange={(e) => setInvoiceInput(e.target.value)}
+                  onKeyDown={handleLoadInvoice}
+                  placeholder="Bipe ou digite a NF e Enter..." 
+                  className="w-full bg-blue-50/30 border-2 border-blue-400 pl-9 pr-3 py-1.5 rounded font-mono text-sm focus:ring-2 focus:ring-blue-800 focus:outline-none text-blue-900 font-bold"
+                />
               </div>
             </div>
 
-            <div className="overflow-y-auto max-h-[240px] border border-gray-300 rounded shadow-inner">
-              <table className="w-full text-left text-[11px] border-collapse">
-                <thead className="bg-[#002B49] text-white font-semibold sticky top-0 z-10">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">Romaneio Vinculado</label>
+                <input type="text" value={manifesto} readOnly className="bg-gray-50 border border-gray-300 px-2.5 py-1.5 rounded font-mono text-gray-700 outline-none" placeholder="REC-..." />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">CNPJ</label>
+                <input type="text" value={companyCnpj} readOnly className="bg-gray-50 border border-gray-300 px-2.5 py-1.5 rounded font-mono text-gray-700 outline-none" placeholder="00.000.000/0000-00" />
+              </div>
+            </div>
+
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">Empresa / Cliente</label>
+              <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-1.5">
+                <Building2 className="w-4 h-4 text-gray-400 mr-2" />
+                <input type="text" value={companyName} readOnly className="bg-transparent w-full font-medium text-gray-700 outline-none" placeholder="Aguardando..." />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">Valor Total da NF</label>
+                <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-gray-400 mr-2" />
+                  <input type="text" value={totalValue} readOnly className="bg-transparent w-full font-mono text-gray-700 outline-none" placeholder="R$ 0,00" />
+                </div>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label className="text-[10px] font-bold text-[#002B49] uppercase text-left pl-1">Status Carga</label>
+                <div className={`flex items-center space-x-2 px-3 py-1.5 rounded border ${
+                  manifestStatus.includes('Finalizado') ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-300'
+                }`}>
+                  {manifestStatus.includes('Finalizado') ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <AlertCircle className="w-3.5 h-3.5 text-amber-600" />}
+                  <span className={`font-mono font-bold text-[10px] ${manifestStatus.includes('Finalizado') ? 'text-emerald-800' : 'text-amber-800'}`}>
+                    {manifestStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PAINEL DIREITO: LANÇAMENTO DE OCORRÊNCIA */}
+        <div className="bg-white border border-gray-300 rounded shadow-sm flex flex-col">
+          <div className="bg-orange-50 border-b border-orange-200 p-2 px-3 rounded-t flex items-center space-x-2">
+            <ShieldAlert className="w-4 h-4 text-orange-600" />
+            <h3 className="text-[11px] font-bold text-orange-800 uppercase">Lançamento de Ocorrência Geral</h3>
+          </div>
+          
+          <div className="p-4 space-y-3 flex-1">
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-orange-900 uppercase text-left pl-1">Motivo Padrão</label>
+              <select 
+                value={ocorrenciaMotivo}
+                onChange={(e) => setOcorrenciaMotivo(e.target.value)}
+                className="w-full bg-white border border-gray-300 px-2 py-1.5 rounded text-xs focus:ring-1 focus:ring-orange-500 outline-none font-medium"
+              >
+                <option>352 - Falta de Mercadoria (Retornou)</option>
+                <option>351 - Falta de Mercadoria (Perda)</option>
+                <option>101 - Avaria de Transporte / Caixa Violada</option>
+                <option>103 - Lote Vencido ou Incompatível</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-orange-900 uppercase text-left pl-1">Setor Responsável</label>
+              <select 
+                value={ocorrenciaSetor}
+                onChange={(e) => setOcorrenciaSetor(e.target.value)}
+                className="w-full bg-white border border-gray-300 px-2 py-1.5 rounded text-xs focus:ring-1 focus:ring-orange-500 outline-none font-medium"
+              >
+                <option value="LOGISTICA">Logística / Doca</option>
+                <option value="SAC">SAC</option>
+                <option value="FISCAL">Fiscal</option>
+                <option value="QUALIDADE">Qualidade</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col space-y-1 flex-1">
+              <label className="text-[10px] font-bold text-orange-900 uppercase text-left pl-1">Observação Geral</label>
+              <textarea 
+                value={ocorrenciaObs}
+                onChange={(e) => setOcorrenciaObs(e.target.value)}
+                placeholder="Descreva detalhes da ocorrência (ex: carga chegou com 2 caixas amassadas...)" 
+                className="w-full bg-white border border-gray-300 px-2 py-1.5 rounded text-xs focus:ring-1 focus:ring-orange-500 outline-none resize-none flex-1 min-h-[60px]"
+              />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 3. TABELA DE ITENS */}
+      <div className="bg-white border border-gray-300 rounded shadow-sm flex flex-col flex-1 min-h-[300px]">
+        
+        <div className="flex border-b border-gray-300 bg-gray-50 px-2 pt-2">
+          <button onClick={() => setActiveTab('items')} className={`px-4 py-1.5 font-bold text-xs rounded-t-md transition ${activeTab === 'items' ? 'bg-white text-[#002B49] border border-gray-300 border-b-white -mb-[1px]' : 'text-gray-500 hover:bg-gray-100'}`}>
+            Visão Geral de Itens ({returnItems.length})
+          </button>
+          <button onClick={() => setActiveTab('batch')} className={`px-4 py-1.5 font-bold text-xs rounded-t-md transition flex items-center gap-1 ${activeTab === 'batch' ? 'bg-white text-[#002B49] border border-gray-300 border-b-white -mb-[1px]' : 'text-gray-500 hover:bg-gray-100'}`}>
+            <Layers className="w-3.5 h-3.5" /> Classificação & Lote
+          </button>
+        </div>
+
+        <div className="p-0 overflow-y-auto flex-1">
+          {activeTab === 'items' ? (
+            <table className="w-full text-left text-[11px] border-collapse">
+              <thead className="bg-[#002B49] text-white font-semibold sticky top-0 z-10">
+                <tr>
+                  <th className="p-2 border-r border-blue-900 w-10 text-center">#</th>
+                  <th className="p-2 border-r border-blue-900 w-28">Nº Material</th>
+                  <th className="p-2 border-r border-blue-900">Descrição</th>
+                  <th className="p-2 border-r border-blue-900 text-center w-20">Qtd Nota</th>
+                  <th className="p-2 border-r border-blue-900 text-center w-24">Conferido</th>
+                  <th className="p-2 border-r border-blue-900 w-64">Motivo do Item (Individual)</th>
+                  <th className="p-2 text-center w-24">Qtd Avariada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {returnItems.length === 0 ? (
                   <tr>
-                    <th className="p-2 border-r border-blue-900 w-12 text-center">#</th>
-                    <th className="p-2 border-r border-blue-900">Nº do Material</th>
-                    <th className="p-2 border-r border-blue-900">Descrição do Produto</th>
-                    <th className="p-2 border-r border-blue-900 text-center">Nota Fiscal</th>
-                    <th className="p-2 border-r border-blue-900 text-center">Qtd da Nota</th>
-                    <th className="p-2 border-r border-blue-900 text-center">Qtd Conferido</th>
-                    <th className="p-2 border-r border-blue-900">Motivo Específico</th>
-                    <th className="p-2 text-center">Qtd Avariada</th>
+                    <td colSpan={7} className="p-12 text-center text-gray-400 italic">
+                      Digite a Nota Fiscal acima para carregar os itens.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {returnItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-12 text-center text-gray-400 italic bg-gray-50">
-                        Digite o código do <strong className="text-gray-700">Romaneio</strong> e pressione <strong className="text-gray-700">Enter</strong> para carregar do Banco de Dados.
-                      </td>
-                    </tr>
-                  ) : (
-                    returnItems.map((item, idx) => (
-                      <tr key={idx} onClick={() => setSelectedRowIndex(idx)} className={`cursor-pointer transition ${selectedRowIndex === idx ? 'bg-blue-100/80 border-l-4 border-[#002B49] font-medium' : 'hover:bg-blue-50/50'}`}>
+                ) : (
+                  returnItems.map((item, idx) => {
+                    const isComplete = item.checkedQty >= item.noteQty;
+                    const hasMissing = item.checkedQty < item.noteQty && item.checkedQty > 0;
+
+                    return (
+                      <tr key={idx} onClick={() => setSelectedRowIndex(idx)} className={`cursor-pointer transition ${selectedRowIndex === idx ? 'bg-blue-50 border-l-4 border-[#002B49] font-medium' : 'hover:bg-blue-50/50'}`}>
                         <td className="p-2 border-r border-gray-200 text-center font-mono text-gray-500">{idx + 1}</td>
-                        <td className="p-2 border-r border-gray-200 font-mono font-bold text-blue-900 bg-gray-50">{item.code}</td>
-                        <td className="p-2 border-r border-gray-200 font-medium bg-gray-50 text-gray-700">{item.desc}</td>
-                        <td className="p-2 border-r border-gray-200 text-center font-mono font-bold text-blue-800 bg-blue-50/30">{item.nfNumber}</td>
-                        <td className="p-2 border-r border-gray-200 text-center font-mono">{item.noteQty}</td>
+                        <td className="p-2 border-r border-gray-200 font-mono font-bold text-blue-900">{item.code}</td>
+                        <td className="p-2 border-r border-gray-200 font-medium text-gray-700">{item.desc}</td>
+                        <td className="p-2 border-r border-gray-200 text-center font-mono font-bold">{item.noteQty}</td>
                         
-                        <td className="p-2 border-r border-gray-200 text-center bg-gray-100/80">
-                          <span className="font-mono font-bold text-emerald-700 px-2 py-0.5 rounded border border-gray-300 bg-white inline-block w-16 text-center select-none">
-                            {item.checkedQty}
-                          </span>
+                        <td className={`p-2 border-r border-gray-200 text-center font-mono font-bold ${isComplete ? 'text-emerald-600' : hasMissing ? 'text-amber-600' : 'text-gray-500'}`}>
+                          {item.checkedQty}
                         </td>
 
                         <td className="p-2 border-r border-gray-200">
-                          <input 
-                            type="text" 
-                            value={item.specificReason} 
-                            onChange={(e) => { 
-                              const upd = [...returnItems]; 
-                              upd[idx].specificReason = e.target.value; 
-                              setReturnItems(upd); 
-                            }} 
-                            className="w-full bg-white border border-gray-300 px-2 py-0.5 rounded text-xs" 
-                          />
+                          <select
+                            value={item.specificReason}
+                            onChange={(e) => {
+                              const upd = [...returnItems];
+                              upd[idx].specificReason = e.target.value;
+                              setReturnItems(upd);
+                            }}
+                            className="w-full bg-white border border-gray-300 px-1.5 py-1 rounded text-[10px] focus:ring-1 focus:ring-blue-500 outline-none font-medium text-gray-700"
+                          >
+                            <option>352 - Falta de Mercadoria (Retornou)</option>
+                            <option>351 - Falta de Mercadoria (Perda)</option>
+                            <option>101 - Avaria de Transporte</option>
+                            <option>103 - Lote Vencido</option>
+                          </select>
                         </td>
 
                         <td className="p-2 text-center">
@@ -356,104 +353,19 @@ console.log("CHAVES DISPONÍVEIS:", Object.keys(data));
                               upd[idx].damagedQty = Number(e.target.value); 
                               setReturnItems(upd); 
                             }} 
-                            className="w-16 bg-red-50 border border-red-300 text-red-700 font-bold px-1 py-0.5 rounded text-center font-mono mx-auto block text-xs shadow-inner" 
+                            className="w-14 bg-red-50 border border-red-300 text-red-700 font-bold px-1 py-1 rounded text-center font-mono mx-auto block text-xs focus:ring-1 focus:ring-red-500 outline-none" 
                           />
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'texts' && (
-          <div className="p-4 bg-gray-50 rounded border border-gray-300 space-y-4">
-            <div>
-              <label className="block font-bold text-gray-700 mb-1 uppercase text-[11px]">Observações do Romaneio / Conferência:</label>
-              <textarea rows={3} value={driverComments} onChange={(e) => setDriverComments(e.target.value)} className="w-full bg-white border border-gray-300 p-2.5 rounded text-xs focus:outline-none" />
-            </div>
-            <div>
-              <label className="block font-bold text-gray-700 mb-1 uppercase text-[11px]">Notas de Atendimento / SAC:</label>
-              <textarea rows={3} value={sacNotes} onChange={(e) => setSacNotes(e.target.value)} className="w-full bg-white border border-gray-300 p-2.5 rounded text-xs focus:outline-none" />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'batch' && (
-          <div className="p-4 bg-gray-50 rounded border border-gray-300 space-y-3">
-            <h4 className="font-bold text-blue-900 uppercase text-[11px] border-b border-gray-300 pb-1">Controle de Lote e Destinação WMS</h4>
-            <div className="overflow-y-auto max-h-[220px] border border-gray-300 rounded bg-white">
-              <table className="w-full text-left text-[11px] border-collapse">
-                <thead className="bg-gray-200 text-gray-700 font-semibold sticky top-0">
-                  <tr>
-                    <th className="p-2 border-r border-gray-300">Material</th>
-                    <th className="p-2 border-r border-gray-300">Lote (Batch)</th>
-                    <th className="p-2 border-r border-gray-300">Validade</th>
-                    <th className="p-2">Destino / Disposição</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 font-mono">
-                  {returnItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="p-6 text-center text-gray-400 italic">Nenhum lote carregado. Insira um Romaneio.</td>
-                    </tr>
-                  ) : (
-                    returnItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-blue-50/50">
-                        <td className="p-2 border-r border-gray-200 font-bold text-blue-900 font-sans">{item.code}</td>
-                        <td className="p-2 border-r border-gray-200">{item.batch}</td>
-                        <td className="p-2 border-r border-gray-200">{item.expiryDate}</td>
-                        <td className="p-2 font-sans font-bold text-amber-900">{item.disposition}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="p-4 bg-gray-50 rounded border border-gray-300 space-y-3">
-            <h4 className="font-bold text-blue-900 uppercase text-[11px] border-b border-gray-300 pb-2">Linha do Tempo & Rastreabilidade do Romaneio</h4>
-            
-            {timelineHistory.length === 0 ? (
-              <p className="text-gray-400 italic p-6 text-center">Nenhum histórico disponível. Carregue um Romaneio.</p>
-            ) : (
-              <div className="space-y-3 py-2">
-                {timelineHistory.map((item, idx) => (
-                  <div key={idx} className="flex items-start space-x-3 text-xs">
-                    <div className={`mt-0.5 p-1 rounded-full ${
-                      item.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      item.status === 'current' ? 'bg-amber-100 text-amber-700 animate-pulse' : 'bg-gray-200 text-gray-400'
-                    }`}>
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 bg-white border border-gray-200 p-2.5 rounded shadow-xs flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-gray-800">{item.step}</span>
-                        <p className="text-[11px] text-gray-500">{item.authorOrLocation}</p>
-                      </div>
-                      <span className="font-mono text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">{item.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Rodapé */}
-        <div className="pt-3 border-t border-gray-200 flex items-center justify-between">
-          <span className="text-[10px] text-gray-500 font-mono">Status: {manifestStatus}</span>
-          <button onClick={handleSave} className="bg-[#002B49] hover:bg-blue-900 text-white px-6 py-1.5 rounded font-bold shadow transition cursor-pointer flex items-center space-x-1.5 text-xs">
-            <Save className="w-3.5 h-3.5" />
-            <span>Gravar [Ctrl+S]</span>
-          </button>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-4 text-gray-400 italic text-center">Nenhum lote carregado.</div>
+          )}
         </div>
-
       </div>
 
     </div>
