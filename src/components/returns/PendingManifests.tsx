@@ -88,6 +88,7 @@ export default function PendingManifests() {
         detItens.forEach(det => {
           items.push({
             code: det.querySelector("cProd")?.textContent || "",
+            ean: det.querySelector("cEAN")?.textContent || "", // <-- ADICIONE ESTA LINHA
             desc: det.querySelector("xProd")?.textContent || "",
             noteQty: Number(det.querySelector("qCom")?.textContent || 0),
             batch: det.querySelector("nLote")?.textContent || "S/L"
