@@ -7,17 +7,30 @@ import {
   PackageCheck, 
   Boxes, 
   RotateCcw, 
-  FileText, 
   Search, 
   Bell, 
   User, 
+  BarChart3,
+  LayoutDashboard,
+  Menu,
+  ChevronLeft,
+  Settings,
+  CheckCircle2,
+  Box,
   AlertTriangle,
-  BarChart3
+  ArrowRight,
+  ShieldAlert,
+  Activity,
+  Layers,
+  FileSpreadsheet,
+  Truck
 } from 'lucide-react';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [menuSearch, setMenuSearch] = useState('');
   const [activeModule, setActiveModule] = useState('dashboard');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -31,29 +44,36 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const modules = [
-    { id: 'receiving', title: 'Recebimento & NFe', code: 'MIGO / VL32N', desc: 'Entrada de mercadorias, conferência e ajuste manual.', icon: <PackageCheck className="w-6 h-6 text-[#002B49]" />, badge: '3 Pendentes' },
-    { id: 'picking', title: 'Separação & Picking', code: 'VL01N', desc: 'Ordens de saída e roteiro de separação no armazém.', icon: <Boxes className="w-6 h-6 text-[#002B49]" />, badge: '12 Em aberto' },
-    { id: 'returns', title: 'Devoluções & SAC', code: 'ZMM_RET', desc: 'Tratamento de recusas, avarias, SAC e código SSW.', icon: <RotateCcw className="w-6 h-6 text-amber-600" />, badge: '2 Alertas' },
-    { id: 'inventory', title: 'Gestão de Estoque', code: 'MB52 / MMBE', desc: 'Consulta de lotes, validades e endereçamento físico.', icon: <BarChart3 className="w-6 h-6 text-[#002B49]" />, badge: 'Normal' },
-  ];
-
   const getModuleTitle = () => {
     switch (activeModule) {
-      case 'receiving': return 'Módulo de Recebimento & Notas Fiscais';
-      case 'picking': return 'Módulo de Separação & Picking';
-      case 'returns': return 'Gestão de Devoluções & SAC';
+      case 'receiving': return 'Recebimento & NFe';
+      case 'picking': return 'Separação & Picking';
+      case 'returns': return 'Devoluções & SAC';
       case 'inventory': return 'Gestão de Estoque';
-      default: return 'Visão Geral';
+      default: return 'Painel Geral & Analytics';
     }
   };
 
+  const menuItems = [
+    { id: 'dashboard', label: 'Home / Dashboard', icon: LayoutDashboard },
+    { id: 'receiving', label: 'Recebimento (MIGO)', icon: PackageCheck },
+    { id: 'picking', label: 'Separação (VL01N)', icon: Boxes },
+    { id: 'returns', label: 'Devoluções & SAC (ZMM_RET)', icon: RotateCcw, isAmber: true },
+    { id: 'inventory', label: 'Gestão de Estoque (MB52)', icon: BarChart3 },
+    { id: 'expedition', label: 'Expedição & Cargas', icon: Truck },
+    { id: 'reports', label: 'Relatórios Gerenciais', icon: FileSpreadsheet },
+    { id: 'masterdata', label: 'Dados Mestres', icon: Layers },
+  ];
+
+  const filteredMenuItems = menuItems.filter(item => 
+    item.label.toLowerCase().includes(menuSearch.toLowerCase())
+  );
+
   return (
-    // TRAVA A TELA PRINCIPAL NO TAMANHO DO MONITOR
     <div className="h-screen w-full bg-slate-100 font-sans text-slate-800 flex flex-col overflow-hidden">
       
-      {/* HEADER CORPORATIVO */}
-      <header className="bg-[#1E293B] text-white h-14 px-6 flex items-center justify-between shadow-md w-full z-50 shrink-0">
+      {/* HEADER SUPERIOR */}
+      <header className="bg-[#1E293B] text-white h-14 px-4 flex items-center justify-between shadow-md w-full z-50 shrink-0">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveModule('dashboard')}>
             <span className="bg-[#2563EB] text-white text-xs font-bold px-2 py-1 rounded">WMS</span>
@@ -61,7 +81,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* BARRA DE PESQUISA */}
+        {/* BARRA DE PESQUISA GLOBAL */}
         <div className="relative w-96">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
             <Search className="w-4 h-4" />
@@ -70,7 +90,7 @@ export default function App() {
             ref={searchInputRef}
             type="text"
             className="w-full bg-[#0F172A] text-white text-sm rounded pl-10 pr-4 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-slate-400 border border-slate-700"
-            placeholder="Buscar transação (ex: MB52) ou NF..."
+            placeholder="Buscar transação (ex: MB52, ZMM_RET) ou NF..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -103,117 +123,292 @@ export default function App() {
         </div>
         <div className="text-emerald-400 font-mono text-[11px] flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Ambiente: PROD-SIMULATOR
+          Ambiente: PROD-SIMULATOR 
         </div>
       </div>
 
-      {/* CONTEÚDO PRINCIPAL (Ocupa o resto e rola internamente se precisar) */}
-      <main className="w-full flex-1 min-h-0 p-4 m-0 overflow-y-auto overflow-x-hidden relative">
-        {activeModule === 'dashboard' ? (
-          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in duration-300">
-            <div className="mb-8">
-              <h4 className="text-2xl font-bold text-slate-800 tracking-tight">Painel de Operações</h4>
-              <p className="text-sm text-slate-500 mt-1">Selecione abaixo o processo que deseja gerenciar.</p>
+      {/* ÁREA PRINCIPAL */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* SIDEBAR SEM BORDAS AZUIS E COM SELEÇÃO LIMPA */}
+        <aside 
+          className={`${
+            isSidebarExpanded ? 'w-60' : 'w-10'
+          } bg-[#1E293B] text-slate-200 flex flex-col justify-between transition-all duration-300 ease-in-out relative z-40 shrink-0 border-r border-slate-700 select-none`}
+        >
+          <div className="flex flex-col h-full">
+            
+            {/* BOTÃO HAMBURGUER */}
+            <div className="h-10 flex items-center justify-center border-b border-slate-700/60 shrink-0">
+              <button 
+                onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
+                className="text-slate-400 hover:text-white hover:bg-slate-800 p-1 rounded transition cursor-pointer"
+                title={isSidebarExpanded ? "Recolher Menu" : "Expandir Menu"}
+              >
+                {isSidebarExpanded ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 w-full">
-              {modules.map((mod) => (
-                <div 
-                  key={mod.id}
-                  onClick={() => setActiveModule(mod.id)}
-                  className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:border-blue-300 transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
-                >
-                  <div className="absolute top-0 left-0 w-full h-1 bg-slate-200 group-hover:bg-[#2563EB] transition-colors"></div>
-                  <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-blue-50 transition-colors">
-                        {mod.icon}
+            {/* BARRA DE PESQUISA DO MENU */}
+            {isSidebarExpanded && (
+              <div className="p-2 border-b border-slate-700/60 animate-in fade-in duration-200">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder="Pesquisar menu..."
+                    value={menuSearch}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                    className="w-full bg-[#0F172A] text-white text-xs rounded pl-8 pr-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ITENS DE NAVEGAÇÃO SEM BORDA AZUL */}
+            <nav className="flex-1 overflow-y-auto py-2 space-y-1 px-1">
+              {filteredMenuItems.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeModule === item.id;
+
+                return (
+                  <div key={item.id} className="relative group flex items-center">
+                    <button
+                      onClick={() => setActiveModule(item.id)}
+                      className={`w-full h-9 flex items-center ${
+                        isSidebarExpanded ? 'px-3 justify-start space-x-2.5' : 'justify-center'
+                      } rounded text-xs font-medium transition-all ${
+                        isActive 
+                          ? 'bg-[#0F172A] text-white shadow-sm font-semibold' 
+                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <IconComponent className={`w-4 h-4 shrink-0 ${
+                        item.isAmber && !isActive ? 'text-amber-400' : ''
+                      }`} />
+
+                      {isSidebarExpanded && (
+                        <span className="truncate whitespace-nowrap">{item.label}</span>
+                      )}
+                    </button>
+
+                    {!isSidebarExpanded && (
+                      <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-[#0F172A] text-white text-xs font-medium rounded shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700">
+                        {item.label}
+                        <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-[#0F172A]"></div>
                       </div>
-                      <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-semibold tracking-wide">
-                        {mod.code}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-sm mb-1.5 group-hover:text-[#2563EB] transition-colors">
-                      {mod.title}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 leading-relaxed h-8">
-                      {mod.desc}
-                    </p>
+                    )}
                   </div>
-                  <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded">
-                      {mod.badge}
-                    </span>
-                    <span className="text-[#2563EB] font-semibold flex items-center opacity-0 group-hover:opacity-100 transform -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                      Acessar &rarr;
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                );
+              })}
+            </nav>
+          </div>
 
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-              <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-slate-800 flex items-center">
-                    <FileText className="w-4 h-4 mr-2 text-[#2563EB]" />
-                    Notas Fiscais de Entrada Recentes
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 bg-slate-50">
-                        <th className="py-2.5 px-3 font-semibold rounded-tl-md">NFe #</th>
-                        <th className="py-2.5 px-3 font-semibold">Fornecedor</th>
-                        <th className="py-2.5 px-3 font-semibold">Status</th>
-                        <th className="py-2.5 px-3 font-semibold text-right rounded-tr-md">Itens</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      <tr className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setActiveModule('receiving')}>
-                        <td className="py-3 px-3 font-mono font-bold text-[#2563EB]">NF-45892</td>
-                        <td className="py-3 px-3 font-medium text-slate-700">EMS Farmacêutica</td>
-                        <td className="py-3 px-3"><span className="bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-semibold">Em Conferência</span></td>
-                        <td className="py-3 px-3 text-right font-mono text-slate-600">120 / 450</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50 cursor-pointer transition-colors">
-                        <td className="py-3 px-3 font-mono font-bold text-[#2563EB]">NF-45893</td>
-                        <td className="py-3 px-3 font-medium text-slate-700">Eurofarma Laboratórios</td>
-                        <td className="py-3 px-3"><span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-semibold">Concluído</span></td>
-                        <td className="py-3 px-3 text-right font-mono text-slate-600">80 / 80</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+          {/* RODAPÉ DO MENU */}
+          <div className="p-1 border-t border-slate-700/60">
+            <div className="relative group flex items-center">
+              <button 
+                className={`w-full h-9 flex items-center ${
+                  isSidebarExpanded ? 'px-3 justify-start space-x-2.5' : 'justify-center'
+                } rounded text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition`}
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                {isSidebarExpanded && <span className="truncate">Configurações</span>}
+              </button>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center">
-                  <AlertTriangle className="w-4 h-4 mr-2 text-amber-500" />
-                  Ocorrências Pendentes
-                </h3>
-                <div className="space-y-3 text-xs">
-                  <div onClick={() => setActiveModule('returns')} className="p-3 bg-red-50 border-l-4 border-red-500 rounded-r-lg cursor-pointer hover:bg-red-100 transition-colors">
-                    <div className="font-bold text-slate-800">101 - Avaria no Transporte</div>
-                    <p className="text-slate-600 mt-1">Pedido #98421 - Cliente recusou caixa amassada.</p>
-                  </div>
-                  <div onClick={() => setActiveModule('returns')} className="p-3 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg cursor-pointer hover:bg-amber-100 transition-colors">
-                    <div className="font-bold text-slate-800">102 - Produto em Falta na NF</div>
-                    <p className="text-slate-600 mt-1">Pedido #98425 - Divergência na conferência de saída.</p>
-                  </div>
+              {!isSidebarExpanded && (
+                <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-[#0F172A] text-white text-xs font-medium rounded shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700">
+                  Configurações
+                  <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-[#0F172A]"></div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-        ) : activeModule === 'receiving' ? (
-          <ReceivingHub onBack={() => setActiveModule('dashboard')} />
-        ) : activeModule === 'returns' ? (
-          <ReturnsModule onBack={() => setActiveModule('dashboard')} />
-        ) : activeModule === 'inventory' ? (
-          <StockManager onBack={() => setActiveModule('dashboard')} />
-        ) : null}
-      </main>
+        </aside>
+
+        {/* ÁREA DE CONTEÚDO PRINCIPAL COM ANIMAÇÃO DE FADE-IN */}
+        <main className="flex-1 min-h-0 overflow-y-auto relative bg-[#F4F6F9] p-5 animate-in fade-in duration-300">
+          {activeModule === 'dashboard' ? (
+            <div className="w-full max-w-[1600px] mx-auto space-y-5">
+              
+              {/* TOPO: TÍTULO E ATALHOS RÁPIDOS */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-600" />
+                    Analytics Cloud | Painel de Controle de Devoluções & Avarias
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Monitoramento em tempo real do fluxo logístico de devoluções e perdas de estoque.</p>
+                </div>
+
+            
+              </div>
+
+              {/* CARDS DE KPI */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                    <Box className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">Romaneios do Dia</p>
+                    <h3 className="text-2xl font-bold text-slate-800">238</h3>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">Transferidos (01 → 05)</p>
+                    <h3 className="text-2xl font-bold text-slate-800">1.420 un</h3>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">Avarias Registradas</p>
+                    <h3 className="text-2xl font-bold text-amber-600">14</h3>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                  <div className="p-3 bg-red-50 text-red-600 rounded-lg">
+                    <ShieldAlert className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">Perdas / Descarte</p>
+                    <h3 className="text-2xl font-bold text-red-600">3 un</h3>
+                  </div>
+                </div>
+              </div>
+
+              {/* GRÁFICOS ANALYTICS */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                
+                {/* GRÁFICO 1 */}
+                <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-600" />
+                      Fluxo de Transferência Atômica (01-DISPONIVEL → 05-DEVOLUCAO)
+                    </h3>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Últimas 12 Horas</span>
+                  </div>
+                  
+                  <div className="h-64 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4 flex items-end justify-between gap-2">
+                    {[45, 80, 30, 95, 110, 60, 75, 130, 85, 90, 140, 95].map((val, idx) => (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
+                        <div className="w-full flex gap-1 items-end justify-center h-full">
+                          <div 
+                            style={{ height: `${val * 1.3}px` }} 
+                            className="w-1/2 bg-blue-600 group-hover:bg-blue-700 rounded-t transition-all"
+                            title={`Entrada 05-DEVOLUCAO: ${val}`}
+                          ></div>
+                          <div 
+                            style={{ height: `${(val * 0.8)}px` }} 
+                            className="w-1/2 bg-slate-300 group-hover:bg-slate-400 rounded-t transition-all"
+                            title={`Baixa 01-DISPONIVEL: ${Math.round(val * 0.8)}`}
+                          ></div>
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-400 mt-1">{idx + 1}h</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-6 mt-4 text-xs font-medium text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 bg-blue-600 rounded-sm"></span>
+                      <span>Entrada (05-DEVOLUCAO)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 bg-slate-300 rounded-sm"></span>
+                      <span>Baixa (01-DISPONIVEL)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* GRÁFICO 2 */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      Distribuição de Avarias & Perdas
+                    </h3>
+                    
+                    <div className="space-y-4 text-xs">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-slate-600">101 - Avaria de Transporte</span>
+                          <span className="font-bold text-slate-800">58%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-amber-500 h-full w-[58%]"></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-slate-600">102 - Pedido em Duplicidade</span>
+                          <span className="font-bold text-slate-800">24%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-blue-500 h-full w-[24%]"></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-slate-600">103 - Validade Próxima (FEFO)</span>
+                          <span className="font-bold text-slate-800">12%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-indigo-500 h-full w-[12%]"></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-slate-600">104 - Perda / Descarte Total</span>
+                          <span className="font-bold text-red-600">6%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-red-500 h-full w-[6%]"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setActiveModule('returns')}
+                    className="w-full mt-6 py-2 bg-slate-50 hover:bg-slate-100 text-blue-600 font-semibold text-xs rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <span>Gerenciar Romaneios e Avarias</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          ) : activeModule === 'receiving' ? (
+            <ReceivingHub onBack={() => setActiveModule('dashboard')} />
+          ) : activeModule === 'returns' ? (
+            <ReturnsModule onBack={() => setActiveModule('dashboard')} />
+          ) : activeModule === 'inventory' ? (
+            <StockManager onBack={() => setActiveModule('dashboard')} />
+          ) : (
+            <div className="p-8 text-center text-slate-500 font-medium bg-white rounded-xl shadow-sm border border-slate-200">
+              Módulo em desenvolvimento ou integrado ao S/4HANA.
+            </div>
+          )}
+        </main>
+
+      </div>
     </div>
   );
 }

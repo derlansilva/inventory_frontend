@@ -54,7 +54,7 @@ export const apiServices = {
 
   getReceivingManifests: async () => {
     try {
-      const response = await api.get('/receiving/manifests'); // TEM QUE SER GET
+      const response = await api.get('/receiving/manifests'); 
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar manifestos:", error);
@@ -62,16 +62,6 @@ export const apiServices = {
     }
   },
 
-  // Envia o XML (POST)
-  uploadXml: async (receivingCode: string, invoiceNumber: string, xmlData: any) => {
-    try {
-      const response = await api.post(`/receiving/upload-xml/${receivingCode}/${invoiceNumber}`, xmlData);
-      return response.data;
-    } catch (error) {
-      console.error("Erro ao enviar XML:", error);
-      throw error;
-    }
-  },
   getInvoiceForScanning: async (invoiceNumber: string) => {
     try {
       const response = await api.get(`/receiving/scan-invoice/${invoiceNumber}`);
@@ -80,5 +70,13 @@ export const apiServices = {
       console.error("Erro ao buscar NF:", error);
       throw error;
     }
-  }
+  },
+
+  // apiServices.ts
+uploadXml: async (manifestCode: string, invoiceNumber: string, payload: any) => {
+  // Removemos o pickingListCode da URL
+  const response = await api.post(`/receiving/upload-xml/${manifestCode}/${invoiceNumber}`, payload);
+  return response.data;
+},
+ 
 };

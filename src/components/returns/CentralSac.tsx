@@ -1,84 +1,28 @@
-import React, { useState } from 'react';
-import { Search, Headphones, FileText, Printer, ArrowRight, ArrowLeft, Layers, ShieldAlert, PlusCircle, Save, Upload, Trash2, Box, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, FileText, Printer, ArrowRight, ShieldAlert, Calendar, RefreshCw, Box, Headphones } from 'lucide-react';
 import SapAlertModal from '../SapAlertModal';
 import { apiServices } from '../../services/apiServices';
 
-interface MovementLog {
-  date: string;
-  trans: string;
-  doc: string;
-  qty: string;
-  status: string;
-  user: string;
-}
-
-interface ProtocolItem {
-  protocol: string;
-  nf: string;
-  customer: string;
-  responsible: string;
-  reasonCode: string;
-  reasonDesc: string;
-  status: string;
-  date: string;
-  items: { code: string; desc: string; qty: number; problem: string }[];
-  movements: MovementLog[];
-}
-
-interface ReturnItem {
-  code: string;
-  desc: string;
-  noteQty: number;
-  specificReason: string;
-  damagedQty: number;
-  batch: string;
-}
-
-interface InvoiceData {
+interface Romaneio {
+  id: string;
+  manifestCode: string;
   nfNumber: string;
   customerName: string;
-  salesOrg: string;
-  distributionChannel: string;
-  items: ReturnItem[];
+  date: string;
+  status: 'ABERTO' | 'CONCLUIDO' | 'AGUARDANDO_XML';
+  totalVolumes: number;
+  scannedItems: number;
+  totalItems: number;
 }
-
-const sacDatabase: Record<string, ProtocolItem> = {
-  'PROT-9988': {
-    protocol: 'PROT-9988',
-    nf: 'NF-45890',
-    customer: 'CUS9999 - Drogaria Pacheco S/A (Filial Curitiba)',
-    responsible: 'CONFERENTE_01 (Carlos Silva)',
-    reasonCode: '101',
-    reasonDesc: 'Avaria de Transporte / Caixa Violada',
-    status: 'Em Análise SAC',
-    date: '27/10/2026',
-    items: [
-      { code: '74321', desc: 'Dipirona Sódica 500mg/ML Sol Oral', qty: 5, problem: 'Caixa violada com avaria física' },
-      { code: '12550', desc: 'Amoxicilina 500mg 30 Capsulas', qty: 2, problem: 'Falta de lacre de segurança' }
-    ],
-    movements: [
-      { date: '27/10/2026 09:30', trans: 'ZMM_RET (Recusa)', doc: 'PROT-9988', qty: '-7 UN', status: 'Processado / WMS', user: 'CONFERENTE_01' },
-      { date: '27/10/2026 11:15', trans: 'MB1B (Bloqueio Avaria)', doc: 'TR-4021', qty: '7 UN', status: 'Estoque em Quarentena', user: 'FARMACEUTICO' }
-    ]
-  }
-};
 
 export default function CentralSac() {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selected, setSelected] = useState<ProtocolItem | null>(null);
-  const [noReturnFoundNf, setNoReturnFoundNf] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   
-  const [viewingDetails, setViewingDetails] = useState<boolean>(false);
-  const [isCreatingReturn, setIsCreatingReturn] = useState<boolean>(false);
-
-  const [manifestCode, setManifestCode] = useState<string>(() => {
-    const now = new Date();
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-    return `GAM-${timeStr}`;
-  });
-  
-  const [globalReason, setGlobalReason] = useState<string>('101 - Avaria de Transporte / Caixa Violada');
-  const [invoicesList, setInvoicesList] = useState<InvoiceData[]>([]);
+  const [romaneios, setRomaneios] = useState<Romaneio[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [selectedRomaneio, setSelectedRomaneio] = useState<Romaneio | null>(null);
 
   const [alertOpen, setAlertOpen] = useState<boolean>(false);
   const [alertMessage, setAlertMessage] = useState<string>('');
@@ -90,28 +34,80 @@ export default function CentralSac() {
     setAlertOpen(true);
   };
 
+  // Simulação de dados (Mock) - Substituir pela chamada apiServices.getManifests(filters)
+  const fetchRomaneios = () => {
+    setLoading(true);
+    
+    // Simulando uma chamada de API com delay de 500ms
+    setTimeout(() => {
+      const mockData: Romaneio[] = [
+        {
+          id: '1',
+          manifestCode: 'REC-591683',
+          nfNumber: '8218174',
+          customerName: 'ATEFARMA COM MED LTDA',
+          date: new Date().toISOString().split('T')[0],
+          status: 'ABERTO',
+          totalVolumes: 5,
+          scannedItems: 15,
+          totalItems: 41
+        },
+        {
+          id: '2',
+          manifestCode: 'REC-591684',
+          nfNumber: '550012',
+          customerName: 'DROGARIA SAO PAULO S/A',
+          date: new Date().toISOString().split('T')[0],
+          status: 'CONCLUIDO',
+          totalVolumes: 2,
+          scannedItems: 25,
+          totalItems: 25
+        },
+        {
+          id: '3',
+          manifestCode: 'REC-591600',
+          nfNumber: '112233',
+          customerName: 'FARMACIAS NIPON S/A',
+          date: '2026-11-06',
+          status: 'AGUARDANDO_XML',
+          totalVolumes: 1,
+          scannedItems: 0,
+          totalItems: 0
+        }
+      ];
+
+      // Aplica os filtros de pesquisa na lista mockada
+      let filtered = mockData;
+
+      if (filterDate) {
+        filtered = filtered.filter(r => r.date === filterDate);
+      }
+
+      if (filterStatus !== 'TODOS') {
+        filtered = filtered.filter(r => r.status === filterStatus);
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        filtered = filtered.filter(r => 
+          r.manifestCode.toLowerCase().includes(q) || 
+          r.nfNumber.toLowerCase().includes(q) ||
+          r.customerName.toLowerCase().includes(q)
+        );
+      }
+
+      setRomaneios(filtered);
+      setLoading(false);
+    }, 500);
+  };
+
+  // Recarrega os dados quando os filtros mudam
+  useEffect(() => {
+    fetchRomaneios();
+  }, [filterDate, filterStatus]);
+
   const handleSearch = () => {
-    const query = searchQuery.trim().toUpperCase();
-    if (!query) {
-      showAlert('Informe um número de Protocolo ou Nota Fiscal para pesquisar.', 'warning');
-      return;
-    }
-
-    setIsCreatingReturn(false);
-    const found = sacDatabase[query] || Object.values(sacDatabase).find(item => item.nf.toUpperCase() === query);
-
-    if (found) {
-      setSelected(found);
-      setNoReturnFoundNf(null);
-      setViewingDetails(false);
-    } else if (query.startsWith('NF-') || query.length >= 4) {
-      setSelected(null);
-      setNoReturnFoundNf(query);
-    } else {
-      showAlert(`Nenhum registo encontrado para "${searchQuery}".`, 'warning');
-      setSelected(null);
-      setNoReturnFoundNf(null);
-    }
+    fetchRomaneios();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -120,387 +116,226 @@ export default function CentralSac() {
     }
   };
 
-  const startCreatingReturn = () => {
-    setIsCreatingReturn(true);
-    setNoReturnFoundNf(null);
-    setInvoicesList([]);
-    
-    const now = new Date();
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-    setManifestCode(`GAM-${timeStr}`);
-  };
-
-  const handleGlobalReasonChange = (newReason: string) => {
-    setGlobalReason(newReason);
-    setInvoicesList(prevInvoices => 
-      prevInvoices.map(inv => ({
-        ...inv,
-        items: inv.items.map(item => ({
-          ...item,
-          specificReason: newReason
-        }))
-      }))
-    );
-  };
-
-  const handleXmlUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(event.target?.result as string, "text/xml");
-          
-          const nfNumber = xmlDoc.querySelector("nNF")?.textContent || `NF-${Math.floor(10000 + Math.random() * 90000)}`;
-          const customerName = xmlDoc.querySelector("dest xNome")?.textContent || 'Cliente Diversos S/A';
-          
-          const detItens = xmlDoc.querySelectorAll("det");
-          const parsedItems: ReturnItem[] = [];
-
-          if (detItens.length > 0) {
-            detItens.forEach(det => {
-              parsedItems.push({
-                code: det.querySelector("cProd")?.textContent || '74321',
-                desc: det.querySelector("xProd")?.textContent || 'Produto Importado via XML',
-                noteQty: Number(det.querySelector("qCom")?.textContent || 10),
-                specificReason: globalReason,
-                damagedQty: 0,
-                batch: det.querySelector("nLote")?.textContent || 'S/L'
-              });
-            });
-          }
-
-          setInvoicesList(prev => [
-            ...prev.filter(inv => inv.nfNumber !== nfNumber),
-            { nfNumber, customerName, salesOrg: '1000', distributionChannel: '10', items: parsedItems }
-          ]);
-        } catch (err) {
-          showAlert('Erro ao processar o arquivo XML da Nota Fiscal.', 'error');
-        }
-      };
-      reader.readAsText(file);
-    });
-  };
-
-  const handleSaveNewReturn = async () => {
-    if (invoicesList.length === 0) {
-      showAlert('Importe pelo menos um arquivo XML de Nota Fiscal para gerar o romaneio.', 'warning');
-      return;
-    }
-
-    const payload = {
-      manifestCode: manifestCode,
-      invoices: invoicesList
-    };
-
-    try {
-      await apiServices.saveReturnManifest(payload);
-      showAlert(`Romaneio ${manifestCode} gerado e estoque de devolução atualizado!`, 'success');
-      setIsCreatingReturn(false);
-      setSearchQuery('');
-    } catch (error: any) {
-      console.error("Erro ao enviar romaneio:", error);
-      showAlert(`Erro ao gravar romaneio: ${error.message || 'Verifique a ligação com o backend.'}`, 'error');
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ABERTO':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 text-[10px] font-bold"><div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"/> Em Aberto</span>;
+      case 'CONCLUIDO':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"/> Concluído</span>;
+      case 'AGUARDANDO_XML':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-red-200 bg-red-50 text-red-700 text-[10px] font-bold"><div className="w-1.5 h-1.5 rounded-full bg-red-500"/> Sem XML</span>;
+      default:
+        return null;
     }
   };
 
   return (
-    // O SEGREDO ESTÁ AQUI: fixed inset-0 (Prende o componente exatamente no tamanho da tela)
-    // e o top-[120px] (dá um espaço para o menu azul escuro do sistema ficar visível em cima)
-    <div className="fixed inset-0 top-[120px] bg-slate-100 flex flex-col font-sans text-xs text-slate-700 overflow-hidden z-10 rounded-t-xl shadow-sm">
+    <div className="bg-slate-50 w-full h-full p-4 font-sans text-xs text-slate-700 flex flex-col overflow-hidden">
       
       <SapAlertModal isOpen={alertOpen} message={alertMessage} type={alertType} onClose={() => setAlertOpen(false)} />
 
-      {/* CABEÇALHO DO SISTEMA */}
-      <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm shrink-0">
-        <div className="flex items-center space-x-2">
-          <Box className="w-5 h-5 text-[#002B49]" />
-          <h3 className="font-bold text-slate-800 text-lg tracking-tight">Gestão de Devoluções</h3>
-          <span className="text-xs text-slate-400 font-medium hidden md:inline-block ml-2 pl-2 border-l border-slate-300">SAC • ZMM_RET</span>
+      {/* CABEÇALHO DA PÁGINA */}
+      <div className="bg-white border border-slate-200 rounded-t-lg p-4 shadow-sm shrink-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="bg-[#002B49] p-1.5 rounded-md">
+              <FileText className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Central de Romaneios</h2>
+              <p className="text-[11px] text-slate-500">Consulte, filtre e acompanhe as devoluções do dia.</p>
+            </div>
+          </div>
+          <button 
+            onClick={fetchRomaneios}
+            className="text-slate-500 hover:text-[#002B49] flex items-center gap-1.5 font-bold text-[11px] transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </button>
         </div>
-        <div className="flex items-center space-x-4 text-[11px] font-mono text-slate-500">
-          <div className="flex items-center space-x-1"><MapPin className="w-3.5 h-3.5" /> <span>Mandante: 100</span></div>
-          <div className="flex items-center space-x-1"><Headphones className="w-3.5 h-3.5" /> <span>OP_LOGISTICA</span></div>
-        </div>
-      </div>
 
-      {/* BARRA DE PESQUISA */}
-      <div className="bg-white border-b border-slate-200 p-3 px-4 flex gap-3 items-center justify-between shrink-0">
-        <div className="flex items-center space-x-2 w-full max-w-2xl">
-          <label className="text-slate-600 font-bold whitespace-nowrap text-xs uppercase tracking-wide">Consultar:</label>
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
+        {/* BARRA DE FILTROS */}
+        <div className="flex flex-wrap items-end gap-3">
+          
+          <div className="flex flex-col space-y-1 w-full max-w-md">
+            <label className="text-[10px] font-bold text-slate-500 uppercase pl-1">Pesquisar Romaneio / NF / Cliente</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2" />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ex: REC-591683, 8218174 ou ATEFARMA..." 
+                className="w-full bg-slate-50 border border-slate-300 pl-9 pr-3 py-1.5 rounded text-xs text-slate-800 focus:ring-1 focus:ring-[#002B49] outline-none transition-all placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase pl-1 flex items-center gap-1"><Calendar className="w-3 h-3"/> Data</label>
             <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Protocolo (PROT-9988) ou NF..." 
-              className="w-full bg-slate-50 border border-slate-300 pl-9 pr-3 py-2 rounded font-mono text-xs text-slate-800 focus:ring-1 focus:ring-[#002B49] outline-none transition-all placeholder:text-slate-400"
+              type="date" 
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="bg-slate-50 border border-slate-300 px-3 py-1.5 rounded text-xs text-slate-800 focus:ring-1 focus:ring-[#002B49] outline-none transition-all"
             />
           </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button 
-            onClick={startCreatingReturn}
-            className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded font-bold flex items-center space-x-1.5 transition-all text-xs"
-          >
-            <PlusCircle className="w-4 h-4 text-emerald-600" />
-            <span>Novo Romaneio</span>
-          </button>
+
+          <div className="flex flex-col space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase pl-1">Status</label>
+            <select 
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-slate-50 border border-slate-300 px-3 py-1.5 rounded text-xs text-slate-800 focus:ring-1 focus:ring-[#002B49] outline-none transition-all w-40"
+            >
+              <option value="TODOS">Todos os Status</option>
+              <option value="ABERTO">Em Aberto</option>
+              <option value="CONCLUIDO">Concluído</option>
+              <option value="AGUARDANDO_XML">Aguardando XML</option>
+            </select>
+          </div>
+
           <button 
             onClick={handleSearch}
-            className="bg-[#002B49] hover:bg-[#003d66] text-white px-5 py-2 rounded font-bold flex items-center space-x-1.5 transition-all text-xs"
+            className="bg-[#002B49] hover:bg-[#003d66] text-white px-5 py-1.5 rounded font-bold shadow-sm transition-all flex items-center gap-1.5 h-[30px]"
           >
-            <Search className="w-4 h-4" />
-            <span>Consultar</span>
+            <Search className="w-3.5 h-3.5" />
+            Buscar
           </button>
         </div>
       </div>
 
-      {/* CONTEÚDO PRINCIPAL (Aqui o min-h-0 permite o flex-1 funcionar corretamente) */}
-      <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
-        
-        {isCreatingReturn ? (
-          <div className="flex flex-col flex-1 min-h-0 pb-16"> {/* pb-16 garante que o conteúdo não fique oculto atrás do botão */}
-            
-            {/* BARRA DO ROMANEIO */}
-            <div className="bg-white border-b border-slate-200 p-2 px-4 flex flex-wrap items-center justify-between gap-2 shrink-0">
-              <div className="flex items-center space-x-3">
-                <button 
-                  onClick={() => setIsCreatingReturn(false)}
-                  className="text-slate-500 hover:text-slate-800 px-2 py-1 rounded font-bold text-xs transition-all flex items-center space-x-1"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Voltar</span>
-                </button>
-                <div className="h-4 w-px bg-slate-300"></div>
-                <div className="flex items-center space-x-1">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase">Romaneio:</span>
-                  <input 
-                    type="text" 
-                    value={manifestCode} 
-                    onChange={(e) => setManifestCode(e.target.value)} 
-                    className="bg-slate-50 border border-slate-300 px-2 py-1 rounded font-mono font-bold text-[#002B49] text-xs w-28 focus:outline-none focus:border-[#002B49]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center space-x-1 bg-blue-50 border border-blue-100 px-2 py-1 rounded">
-                  <label className="text-[11px] font-bold text-blue-900 uppercase">Motivo:</label>
-                  <select 
-                    value={globalReason}
-                    onChange={(e) => handleGlobalReasonChange(e.target.value)}
-                    className="bg-transparent border-none font-semibold text-blue-900 text-[11px] focus:ring-0 outline-none w-48 cursor-pointer"
-                  >
-                    <option>101 - Avaria / Caixa Violada</option>
-                    <option>102 - Divergência (Falta)</option>
-                    <option>103 - Lote Vencido</option>
-                    <option>104 - Cadeia Fria</option>
-                  </select>
-                </div>
-
-                <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded font-bold text-xs cursor-pointer flex items-center space-x-1 shadow-sm transition-all">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Importar XML</span>
-                  <input type="file" multiple accept=".xml" onChange={handleXmlUpload} className="hidden" />
-                </label>
-              </div>
+      {/* TABELA DE RESULTADOS */}
+      <div className="bg-white border border-t-0 border-slate-200 rounded-b-lg shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+              <RefreshCw className="w-8 h-8 animate-spin text-[#002B49] opacity-50" />
+              <p className="text-xs font-bold">Buscando romaneios...</p>
             </div>
-
-            {/* ÁREA DE NOTAS (ÚNICA PARTE DA TELA QUE VAI ROLAR) */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {invoicesList.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 border-2 border-dashed border-slate-300 rounded-lg bg-white/50 min-h-[200px]">
-                  <Upload className="w-6 h-6 text-slate-400" />
-                  <p className="text-xs font-bold text-slate-600">Aguardando XML</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-w-[1400px] mx-auto">
-                  <h4 className="font-bold text-slate-500 uppercase tracking-widest text-[10px] flex items-center gap-1">
-                    <FileText className="w-3 h-3 text-[#002B49]" />
-                    Notas Importadas ({invoicesList.length})
-                  </h4>
-
-                  {invoicesList.map((inv, invIdx) => (
-                    <div key={invIdx} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-                      <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="bg-[#002B49] text-white px-2 py-0.5 rounded font-mono font-bold text-[10px]">NF: {inv.nfNumber}</span>
-                          <span className="text-slate-700 font-bold text-[11px]">{inv.customerName}</span>
+          ) : romaneios.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+              <ShieldAlert className="w-10 h-10 text-slate-300" />
+              <p className="text-sm font-bold text-slate-600">Nenhum romaneio encontrado</p>
+              <p className="text-xs">Tente mudar a data ou o status do filtro.</p>
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-100 text-slate-600 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Romaneio</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">NF</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Cliente</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Data</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-center">Volumes</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] w-40">Progresso</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {romaneios.map((rom) => (
+                  <tr key={rom.id} className="hover:bg-blue-50/40 transition-colors group">
+                    <td className="px-4 py-3 font-mono font-bold text-[#002B49]">{rom.manifestCode}</td>
+                    <td className="px-4 py-3 font-mono text-slate-600">{rom.nfNumber}</td>
+                    <td className="px-4 py-3 font-medium text-slate-700">{rom.customerName}</td>
+                    <td className="px-4 py-3 text-slate-500">{rom.date.split('-').reverse().join('/')}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200">
+                        {rom.totalVolumes} cx
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {rom.status === 'AGUARDANDO_XML' ? (
+                         <span className="text-slate-400 italic text-[10px]">Aguardando importação</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${rom.scannedItems === rom.totalItems ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                              style={{ width: `${Math.min(100, (rom.scannedItems / (rom.totalItems || 1)) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-[10px] font-bold text-slate-600 w-10 text-right">
+                            {rom.scannedItems}/{rom.totalItems}
+                          </span>
                         </div>
-                        <button 
-                          onClick={() => setInvoicesList(invoicesList.filter((_, i) => i !== invIdx))}
-                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{getStatusBadge(rom.status)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button 
+                        onClick={() => setSelectedRomaneio(rom)}
+                        className="text-[#002B49] hover:text-blue-700 font-bold text-[11px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end ml-auto"
+                      >
+                        Detalhes <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        {/* RODAPÉ DA TABELA */}
+        <div className="bg-slate-50 border-t border-slate-200 p-2 px-4 flex items-center justify-between shrink-0">
+          <span className="text-[10px] text-slate-500 font-mono">Total: {romaneios.length} registro(s)</span>
+          <button 
+            onClick={() => showAlert('Aqui você pode exportar um relatório em PDF ou Excel.', 'info')}
+            className="text-slate-500 hover:text-[#002B49] flex items-center gap-1.5 font-bold text-[11px] transition-colors"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Exportar
+          </button>
+        </div>
+      </div>
 
-                      <table className="w-full text-left text-[11px] border-collapse font-sans">
-                        <thead className="bg-white text-slate-500 border-b border-slate-200">
-                          <tr>
-                            <th className="px-3 py-1.5 font-bold uppercase text-[9px]">Material</th>
-                            <th className="px-3 py-1.5 font-bold uppercase text-[9px]">Descrição</th>
-                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] text-center">Qtd</th>
-                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] text-center">Lote</th>
-                            <th className="px-3 py-1.5 font-bold uppercase text-[9px] w-48">Motivo</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {inv.items.map((item, itemIdx) => (
-                            <tr key={itemIdx} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-3 py-1 font-mono font-bold text-[#002B49]">{item.code}</td>
-                              <td className="px-3 py-1 text-slate-700 truncate max-w-[200px]" title={item.desc}>{item.desc}</td>
-                              <td className="px-3 py-1 text-center font-mono font-bold text-slate-800 bg-slate-50/50">{item.noteQty}</td>
-                              <td className="px-3 py-1 text-center font-mono text-slate-500">{item.batch}</td>
-                              <td className="px-3 py-1">
-                                <select 
-                                  value={item.specificReason}
-                                  onChange={(e) => {
-                                    const updated = [...invoicesList];
-                                    updated[invIdx].items[itemIdx].specificReason = e.target.value;
-                                    setInvoicesList(updated);
-                                  }}
-                                  className="w-full bg-white border border-slate-300 px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-700 focus:ring-1 focus:ring-[#002B49] outline-none"
-                                >
-                                  <option>101 - Avaria de Transporte</option>
-                                  <option>102 - Divergência (Falta de Item)</option>
-                                  <option>103 - Lote Vencido</option>
-                                  <option>104 - Cadeia Fria</option>
-                                </select>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* MODAL DE DETALHES DO ROMANEIO (Opcional para expandir depois) */}
+      {selectedRomaneio && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="bg-[#002B49] p-3 px-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <Box className="w-4 h-4 text-amber-400" />
+                Detalhes do Romaneio: {selectedRomaneio.manifestCode}
+              </h3>
+              <button onClick={() => setSelectedRomaneio(null)} className="text-white/70 hover:text-white font-bold">X</button>
             </div>
-          </div>
-        ) : noReturnFoundNf ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="bg-white border border-amber-200 p-6 rounded-lg max-w-sm text-center shadow-sm">
-              <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-              <h3 className="font-bold text-amber-900 text-sm mb-1">Nenhum Romaneio</h3>
-              <p className="text-[11px] text-slate-500 mb-4">A NF <strong className="font-mono">{noReturnFoundNf}</strong> não possui devoluções.</p>
-              <button onClick={startCreatingReturn} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded font-bold text-xs shadow-sm">
-                Criar Romaneio
+            <div className="p-5 space-y-4 text-slate-700">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Nota Fiscal</span>
+                  <span className="font-mono text-sm font-bold">{selectedRomaneio.nfNumber}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Cliente</span>
+                  <span className="font-medium">{selectedRomaneio.customerName}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Data Entrada</span>
+                  <span>{selectedRomaneio.date.split('-').reverse().join('/')}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase">Status</span>
+                  {getStatusBadge(selectedRomaneio.status)}
+                </div>
+              </div>
+              <div className="bg-slate-50 p-3 rounded border border-slate-200">
+                <p className="text-xs text-slate-500 text-center">Aqui você pode carregar os itens da nota fiscal, logs de bipagem, e imprimir o romaneio.</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-3 border-t border-slate-200 flex justify-end">
+              <button onClick={() => setSelectedRomaneio(null)} className="bg-[#002B49] text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-blue-900">
+                Fechar
               </button>
             </div>
           </div>
-        ) : !selected ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-4 text-slate-400">
-            <Headphones className="w-10 h-10 text-slate-300 mb-2" />
-            <p className="text-xs font-bold text-slate-500">Aguardando consulta</p>
-          </div>
-        ) : !viewingDetails ? (
-          <div className="p-4 flex-1 overflow-y-auto animate-in fade-in">
-            <div className="max-w-3xl mx-auto space-y-3">
-              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
-                  <h3 className="font-bold text-slate-800 text-xs">Detalhes do Chamado {selected.protocol}</h3>
-                </div>
-                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Cliente</span> <span className="font-medium text-slate-700">{selected.customer}</span></div>
-                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Nota Fiscal</span> <span className="font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">{selected.nf}</span></div>
-                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Responsável</span> <span className="font-medium text-slate-700">{selected.responsible}</span></div>
-                  <div><span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Status</span> <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{selected.status}</span></div>
-                  
-                  <div className="md:col-span-2 bg-amber-50/50 p-2 rounded border border-amber-100 flex items-center justify-between mt-1">
-                    <span className="font-mono text-[11px] font-bold text-slate-700">{selected.reasonCode} - {selected.reasonDesc}</span>
-                    <button onClick={() => setViewingDetails(true)} className="text-[#002B49] hover:text-blue-800 font-bold text-[10px] flex items-center gap-1">
-                      Ver Movimentações <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Material</th>
-                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Descrição</th>
-                      <th className="px-4 py-2 font-bold text-[10px] uppercase text-center">Qtd</th>
-                      <th className="px-4 py-2 font-bold text-[10px] uppercase">Relato</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selected.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 font-mono font-bold text-[#002B49]">{item.code}</td>
-                        <td className="px-4 py-2 text-slate-700 font-medium">{item.desc}</td>
-                        <td className="px-4 py-2 text-center font-mono font-bold text-red-600 bg-red-50/20">{item.qty}</td>
-                        <td className="px-4 py-2 text-slate-500 text-[11px]">{item.problem}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 flex-1 overflow-y-auto animate-in fade-in">
-            <div className="max-w-3xl mx-auto space-y-3">
-              <div className="flex items-center justify-between mb-2">
-                <button onClick={() => setViewingDetails(false)} className="text-slate-500 hover:text-slate-800 font-bold text-[11px] flex items-center gap-1">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-                </button>
-                <span className="font-mono text-[10px] text-slate-400 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
-                  {selected.protocol} | {selected.nf}
-                </span>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Data/Hora</th>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Transação</th>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Doc</th>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase text-center">Qtd</th>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Status</th>
-                      <th className="px-3 py-2 font-bold text-[10px] uppercase">Usuário</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                    {selected.movements.map((mov, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 text-slate-500">{mov.date}</td>
-                        <td className="px-3 py-2 font-bold text-[#002B49]">{mov.trans}</td>
-                        <td className="px-3 py-2 text-slate-700">{mov.doc}</td>
-                        <td className="px-3 py-2 text-center font-bold text-red-600">{mov.qty}</td>
-                        <td className="px-3 py-2 text-amber-700 font-bold">{mov.status}</td>
-                        <td className="px-3 py-2 text-slate-600">{mov.user}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-{/* BOTÃO FIXO GLOBAL (Ajustado para ficar fino como o botão de Importar) */}
-      {isCreatingReturn && (
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-2 px-6 flex justify-end shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
-          <button 
-            onClick={handleSaveNewReturn}
-            disabled={invoicesList.length === 0}
-            className="bg-[#002B49] hover:bg-[#003d66] disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Gravar Romaneio </span>
-          </button>
         </div>
       )}
+
     </div>
   );
 }

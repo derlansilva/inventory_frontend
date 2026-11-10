@@ -11,7 +11,7 @@ interface SapAlertModalProps {
 
 export default function SapAlertModal({
   isOpen,
-  title = 'Mensagem do Sistema (S/4HANA)',
+  title = 'Mensagem do Sistema ',
   message,
   type = 'info',
   onClose

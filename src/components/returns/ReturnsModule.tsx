@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import CentralSac from './CentralSac';
 import ReturnsEntry from './ReturnsEntry';
 import PendingManifests from './PendingManifests';
-import { Headphones, PackagePlus, ArrowLeft, UploadCloud } from 'lucide-react';
+import { Headphones, PackagePlus, ArrowLeft, UploadCloud, ChevronDown } from 'lucide-react';
 
 interface ReturnsModuleProps {
   onBack: () => void;
@@ -11,17 +11,10 @@ interface ReturnsModuleProps {
 export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
   const [activeSubTab, setActiveSubTab] = useState<'lancamento' | 'recebimento' | 'sac'>('lancamento');
 
-  const baseButtonClass = "px-3 py-1.5 rounded-md font-bold text-[11px] transition-all duration-300 ease-in-out flex items-center space-x-1.5 border shadow-sm";
-  const activeClass = "bg-white text-[#002B49] border-gray-300 ring-1 ring-black/5"; 
-  const inactiveClass = "bg-[#002B49] hover:bg-[#003d66] text-white border-[#002B49] hover:border-[#003d66]";
-
   return (
     <div className="w-full font-sans rounded shadow-md overflow-hidden bg-white relative z-20 mt-0 flex flex-col h-full">
       
-      {/* 
-        HEADER TOP COMPACTO 
-        Adicionado z-50 e relative para garantir que os botões fiquem SEMPRE por cima de qualquer tela (como o SAC)
-      */}
+      {/* HEADER TOP COMPACTO */}
       <div className="bg-[#E9ECEF] px-4 py-2 flex items-center justify-between text-xs border-b border-gray-300 relative z-50 shrink-0">
         
         {/* Lado Esquerdo */}
@@ -48,41 +41,34 @@ export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
           </div>
         </div>
 
-        {/* Lado Direito: Abas do Menu */}
-        <div className="flex items-center space-x-1.5">
-          
-          <button 
-            onClick={() => setActiveSubTab('lancamento')}
-            className={`${baseButtonClass} ${activeSubTab === 'lancamento' ? activeClass : inactiveClass}`}
-          >
-            <PackagePlus className="w-3.5 h-3.5" />
-            <span>Lançamento de Devoluções</span>
-          </button>
+        {/* Lado Direito: Combobox com as Telas */}
+        <div className="relative">
+          <div className="flex items-center space-x-2 bg-[#002B49] text-white px-3 py-1.5 rounded-md border border-[#002B49] shadow-sm cursor-pointer hover:bg-[#003d66] transition-all">
+            {activeSubTab === 'lancamento' && <PackagePlus className="w-4 h-4 text-white" />}
+            {activeSubTab === 'recebimento' && <UploadCloud className="w-4 h-4 text-white" />}
+            {activeSubTab === 'sac' && <Headphones className="w-4 h-4 text-white" />}
 
-          <button 
-            onClick={() => setActiveSubTab('recebimento')}
-            className={`${baseButtonClass} ${activeSubTab === 'recebimento' ? activeClass : inactiveClass}`}
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span>Recebimento Cego (XMLs)</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveSubTab('sac')}
-            className={`${baseButtonClass} ${activeSubTab === 'sac' ? activeClass : inactiveClass}`}
-          >
-            <Headphones className="w-3.5 h-3.5" />
-            <span>Central SAC & Histórico</span>
-          </button>
-
+            <select
+              value={activeSubTab}
+              onChange={(e) => setActiveSubTab(e.target.value as 'lancamento' | 'recebimento' | 'sac')}
+              className="bg-transparent text-white font-bold text-[11px] outline-none cursor-pointer pr-4 appearance-none"
+            >
+              <option value="lancamento" className="bg-white text-[#002B49] font-medium py-1">
+                Lançamento de Devoluções
+              </option>
+              <option value="recebimento" className="bg-white text-[#002B49] font-medium py-1">
+                Recebimento Cego (XMLs)
+              </option>
+              <option value="sac" className="bg-white text-[#002B49] font-medium py-1">
+                Central SAC & Histórico
+              </option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-white pointer-events-none -ml-4" />
+          </div>
         </div>
       </div>
 
-      {/* 
-        CONTEÚDO DO MÓDULO 
-        Adicionado 'animate-in fade-in' para uma transição suave de opacidade.
-        O z-10 garante que o conteúdo fique abaixo do header (que é z-50).
-      */}
+      {/* CONTEÚDO DO MÓDULO */}
       <div className="w-full flex-1 bg-[#E9ECEF] relative z-10 overflow-hidden">
         <div key={activeSubTab} className="w-full h-full animate-in fade-in duration-300">
           {activeSubTab === 'lancamento' && <ReturnsEntry />}
