@@ -79,4 +79,10 @@ uploadXml: async (manifestCode: string, invoiceNumber: string, payload: any) => 
   return response.data;
 },
  
+  saveOccurrence: async (payload: any) => {
+    const response = await api.post('/receiving/save-occurrence', payload);
+    return response.data;
+  },
+
+  
 };
