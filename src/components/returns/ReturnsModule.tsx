@@ -1,15 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import CentralSac from './CentralSac';
 import ReturnsEntry from './ReturnsEntry';
 import PendingManifests from './PendingManifests';
-import { Headphones, PackagePlus, ArrowLeft, UploadCloud, ChevronDown } from 'lucide-react';
+import { Headphones, PackagePlus, ArrowLeft, UploadCloud, ChevronDown, Box } from 'lucide-react';
 
 interface ReturnsModuleProps {
   onBack: () => void;
 }
 
+type SubTab = 'lancamento' | 'recebimento' | 'sac';
+
 export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'lancamento' | 'recebimento' | 'sac'>('lancamento');
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('lancamento');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fecha o menu se clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Mapeamento das opções para não precisar repetir código
+  const menuOptions = [
+    { id: 'lancamento', label: 'Lançamento de Devoluções', icon: PackagePlus },
+    { id: 'recebimento', label: 'Recebimento Cego (XMLs)', icon: UploadCloud },
+    { id: 'sac', label: 'Central SAC & Histórico', icon: Headphones },
+  ];
+
+  const ActiveIcon = menuOptions.find(o => o.id === activeSubTab)?.icon || Box;
+  const activeLabel = menuOptions.find(o => o.id === activeSubTab)?.label;
 
   return (
     <div className="w-full font-sans rounded shadow-md overflow-hidden bg-white relative z-20 mt-0 flex flex-col h-full">
@@ -41,30 +66,48 @@ export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
           </div>
         </div>
 
-        {/* Lado Direito: Combobox com as Telas */}
-        <div className="relative">
-          <div className="flex items-center space-x-2 bg-[#002B49] text-white px-3 py-1.5 rounded-md border border-[#002B49] shadow-sm cursor-pointer hover:bg-[#003d66] transition-all">
-            {activeSubTab === 'lancamento' && <PackagePlus className="w-4 h-4 text-white" />}
-            {activeSubTab === 'recebimento' && <UploadCloud className="w-4 h-4 text-white" />}
-            {activeSubTab === 'sac' && <Headphones className="w-4 h-4 text-white" />}
+        {/* Lado Direito: Menu Dropdown Customizado */}
+        <div className="relative" ref={dropdownRef}>
+          
+          {/* BOTÃO PRINCIPAL */}
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="flex items-center space-x-2 bg-[#002B49] text-white px-3 py-1.5 rounded-md border border-[#002B49] shadow-sm hover:bg-[#003d66] transition-all"
+          >
+            <ActiveIcon className="w-4 h-4 text-blue-300" />
+            <span className="font-bold text-[11px]">{activeLabel}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-blue-300 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
 
-            <select
-              value={activeSubTab}
-              onChange={(e) => setActiveSubTab(e.target.value as 'lancamento' | 'recebimento' | 'sac')}
-              className="bg-transparent text-white font-bold text-[11px] outline-none cursor-pointer pr-4 appearance-none"
-            >
-              <option value="lancamento" className="bg-white text-[#002B49] font-medium py-1">
-                Lançamento de Devoluções
-              </option>
-              <option value="recebimento" className="bg-white text-[#002B49] font-medium py-1">
-                Recebimento Cego (XMLs)
-              </option>
-              <option value="sac" className="bg-white text-[#002B49] font-medium py-1">
-                Central SAC & Histórico
-              </option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-white pointer-events-none -ml-4" />
-          </div>
+          {/* DROPDOWN FLUTUANTE */}
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-1 w-60 bg-white rounded-md shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="py-1">
+                {menuOptions.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = activeSubTab === option.id;
+
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => {
+                        setActiveSubTab(option.id as SubTab);
+                        setIsMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs transition-colors ${
+                        isActive 
+                          ? 'bg-blue-50 text-[#002B49] font-bold border-l-4 border-[#002B49]' 
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border-l-4 border-transparent'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-[#002B49]' : 'text-slate-400'}`} />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

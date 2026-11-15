@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle, Copy, Check, ArrowLeft, Truck, Loader2, AlertTriangle } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle, Copy, Check, ArrowLeft, Truck, Loader2, AlertTriangle ,RefreshCw } from 'lucide-react';
 import { apiServices } from '../../services/apiServices';
 
 interface InvoiceData {
@@ -161,9 +161,13 @@ export default function PendingManifests() {
               <Truck className="w-4 h-4 text-[#002B49]" />
               Manifesto de Recebimento
             </h3>
-            <button onClick={fetchManifests} className="text-xs font-bold text-blue-600 hover:underline">
-              Refresh List
-            </button>
+      <button 
+  onClick={fetchManifests} 
+  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#002B49] hover:bg-[#003d66] px-3 py-1.5 rounded-md shadow-sm active:scale-95 transition-all"
+>
+  <RefreshCw className="w-3.5 h-3.5" />
+  
+</button>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
