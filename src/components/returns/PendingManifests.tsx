@@ -246,9 +246,9 @@ export default function PendingManifests() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
                 Manifest: <span className="text-[#002B49] font-mono text-base">{selectedManifest.manifestCode}</span>
-              </h2>
+              </h3>
             </div>
           </div>
         </div>

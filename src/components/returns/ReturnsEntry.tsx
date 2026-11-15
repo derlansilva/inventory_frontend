@@ -207,15 +207,7 @@ export default function ReturnsEntry() {
         
         <SapAlertModal isOpen={alertOpen} message={alertMessage} type={alertType} onClose={() => setAlertOpen(false)} />
 
-        <div className="bg-[#1E293B] text-white px-3 py-1.5 flex items-center justify-between shrink-0 border-b border-slate-700">
-          <div className="flex items-center space-x-2">
-            <span className="bg-[#2563EB] text-white font-mono font-bold px-1.5 py-0.5 rounded text-[10px]">ZMM_RET</span>
-            <span className="font-bold tracking-wide uppercase text-xs">Gestão de Devoluções & Tratamento de Ocorrências</span>
-          </div>
-          <div className="text-[10px] font-mono text-slate-300">
-             PROD-SIMULATOR
-          </div>
-        </div>
+       
 
         <div className="p-2 flex flex-col flex-1 min-h-0 bg-[#F8FAFC] gap-2">
           

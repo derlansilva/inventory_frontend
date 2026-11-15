@@ -13,17 +13,15 @@ import {
   BarChart3,
   LayoutDashboard,
   Menu,
-  ChevronLeft,
   Settings,
-  CheckCircle2,
   Box,
-  AlertTriangle,
   ArrowRight,
-  ShieldAlert,
-  Activity,
-  Layers,
   FileSpreadsheet,
-  Truck
+  Layers,
+  Truck,
+  Calendar,
+  ArrowRightLeft,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -56,10 +54,10 @@ export default function App() {
 
   const menuItems = [
     { id: 'dashboard', label: 'Home / Dashboard', icon: LayoutDashboard },
-    { id: 'receiving', label: 'Recebimento (MIGO)', icon: PackageCheck },
-    { id: 'picking', label: 'Separação (VL01N)', icon: Boxes },
-    { id: 'returns', label: 'Devoluções & SAC (ZMM_RET)', icon: RotateCcw, isAmber: true },
-    { id: 'inventory', label: 'Gestão de Estoque (MB52)', icon: BarChart3 },
+    { id: 'receiving', label: 'Recebimento ', icon: PackageCheck },
+    { id: 'picking', label: 'Separação ', icon: Boxes },
+    { id: 'returns', label: 'Devoluções & SAC ', icon: RotateCcw },
+    { id: 'inventory', label: 'Gestão de Estoque', icon: BarChart3 },
     { id: 'expedition', label: 'Expedição & Cargas', icon: Truck },
     { id: 'reports', label: 'Relatórios Gerenciais', icon: FileSpreadsheet },
     { id: 'masterdata', label: 'Dados Mestres', icon: Layers },
@@ -70,88 +68,88 @@ export default function App() {
   );
 
   return (
-    <div className="h-screen w-full bg-slate-100 font-sans text-slate-800 flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-[#F4F6F9] font-sans text-slate-800 flex flex-col overflow-hidden">
       
-      {/* HEADER SUPERIOR */}
-      <header className="bg-[#1E293B] text-white h-14 px-4 flex items-center justify-between shadow-md w-full z-50 shrink-0">
+      {/* HEADER SUPERIOR - SAP FIORI AZUL */}
+      <header className="bg-[#354A5F] text-white h-12 px-4 flex items-center justify-between shadow-md w-full z-50 shrink-0">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveModule('dashboard')}>
-            <span className="bg-[#2563EB] text-white text-xs font-bold px-2 py-1 rounded">WMS</span>
+            <span className="bg-white text-[#354A5F] text-xs font-bold px-1.5 py-0.5 rounded-sm">WMS</span>
             <span className="font-semibold tracking-wide text-sm">Logistics Cloud</span>
           </div>
         </div>
 
-        {/* BARRA DE PESQUISA GLOBAL */}
+                {/* BARRA DE PESQUISA GLOBAL */}
         <div className="relative w-96">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-300">
             <Search className="w-4 h-4" />
           </span>
           <input
             ref={searchInputRef}
             type="text"
-            className="w-full bg-[#0F172A] text-white text-sm rounded pl-10 pr-4 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-slate-400 border border-slate-700"
+            className="w-full bg-[#2A3A4A] text-white text-sm rounded-sm pl-10 pr-14 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-slate-400 border border-[#42586D] transition-colors hover:border-slate-400"
             placeholder="Buscar transação (ex: MB52, ZMM_RET) ou NF..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-xs text-slate-500 font-mono">
+          <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[10px] text-slate-400 font-mono">
             Ctrl + K
           </span>
         </div>
 
         {/* PERFIL */}
-        <div className="flex items-center space-x-5 text-slate-300">
+        <div className="flex items-center space-x-5 text-slate-200">
           <button className="relative hover:text-white transition">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">2</span>
+            <Bell className="w-4 h-4" />
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold">2</span>
           </button>
-          <div className="flex items-center space-x-2 border-l border-slate-600 pl-4 cursor-pointer">
-            <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center text-white font-bold text-sm">
-              <User className="w-4 h-4" />
+          <div className="flex items-center space-x-2 border-l border-[#5C6F82] pl-4 cursor-pointer">
+            <div className="w-7 h-7 rounded-full bg-[#0A6ED1] flex items-center justify-center text-white font-bold text-xs">
+              <User className="w-3.5 h-3.5" />
             </div>
-            <span className="text-sm font-medium text-white">Operador Logística</span>
+            <span className="text-xs font-medium text-white">Operador Logística</span>
           </div>
         </div>
       </header>
 
-      {/* BREADCRUMB */}
-      <div className="bg-[#334155] text-white px-6 py-2 flex items-center justify-between text-xs shadow-sm border-b border-slate-800 shrink-0">
-        <div className="flex items-center space-x-2 text-slate-300">
+      {/* BREADCRUMB - TOM DE AZUL MAIS CLARO (SAP) */}
+      <div className="bg-[#42586D] text-slate-200 px-4 py-1.5 flex items-center justify-between text-xs shadow-sm border-b border-[#354A5F] shrink-0">
+        <div className="flex items-center space-x-2">
           <span className="hover:text-white cursor-pointer transition" onClick={() => setActiveModule('dashboard')}>Home</span>
-          <span className="text-slate-500">&gt;</span>
+          <span className="text-slate-400">&gt;</span>
           <span className="font-semibold text-white">{getModuleTitle()}</span>
         </div>
-        <div className="text-emerald-400 font-mono text-[11px] flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Ambiente: PROD-SIMULATOR 
+        <div className="text-[#91C8F2] font-mono text-[10px] flex items-center gap-1.5 bg-[#354A5F] px-2 py-0.5 rounded-sm border border-[#5C6F82]">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          PROD-SIMULATOR 
         </div>
       </div>
 
       {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* SIDEBAR SEM BORDAS AZUIS E COM SELEÇÃO LIMPA */}
+        {/* SIDEBAR - SAP AZUL ESCURO */}
         <aside 
           className={`${
-            isSidebarExpanded ? 'w-60' : 'w-10'
-          } bg-[#1E293B] text-slate-200 flex flex-col justify-between transition-all duration-300 ease-in-out relative z-40 shrink-0 border-r border-slate-700 select-none`}
+            isSidebarExpanded ? 'w-60' : 'w-12'
+          } bg-[#354A5F] text-slate-200 flex flex-col justify-between transition-all duration-300 ease-in-out relative z-40 shrink-0 border-r border-[#2A3A4A] select-none`}
         >
           <div className="flex flex-col h-full">
             
-            {/* BOTÃO HAMBURGUER */}
-            <div className="h-10 flex items-center justify-center border-b border-slate-700/60 shrink-0">
+            {/* BOTÃO DE MENU */}
+            <div className={`h-10 flex items-center border-b border-[#2A3A4A] shrink-0 px-2 ${isSidebarExpanded ? 'justify-end' : 'justify-center'}`}>
               <button 
                 onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-                className="text-slate-400 hover:text-white hover:bg-slate-800 p-1 rounded transition cursor-pointer"
-                title={isSidebarExpanded ? "Recolher Menu" : "Expandir Menu"}
+                className="text-slate-300 hover:text-white hover:bg-[#2A3A4A] p-1.5 rounded transition cursor-pointer"
+                title={isSidebarExpanded ? "Fechar Menu" : "Abrir Menu"}
               >
-                {isSidebarExpanded ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+                {isSidebarExpanded ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
               </button>
             </div>
 
             {/* BARRA DE PESQUISA DO MENU */}
             {isSidebarExpanded && (
-              <div className="p-2 border-b border-slate-700/60 animate-in fade-in duration-200">
+              <div className="p-2 border-b border-[#2A3A4A] animate-in fade-in duration-200">
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
                   <input 
@@ -159,14 +157,13 @@ export default function App() {
                     placeholder="Pesquisar menu..."
                     value={menuSearch}
                     onChange={(e) => setMenuSearch(e.target.value)}
-                    className="w-full bg-[#0F172A] text-white text-xs rounded pl-8 pr-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 placeholder-slate-400"
+                    className="w-full bg-[#2A3A4A] text-white text-xs rounded-sm pl-8 pr-3 py-1.5 border border-[#42586D] focus:outline-none focus:border-blue-400 placeholder-slate-400"
                   />
                 </div>
               </div>
             )}
 
-            {/* ITENS DE NAVEGAÇÃO SEM BORDA AZUL */}
-            <nav className="flex-1 overflow-y-auto py-2 space-y-1 px-1">
+            <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 px-1">
               {filteredMenuItems.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = activeModule === item.id;
@@ -175,221 +172,192 @@ export default function App() {
                   <div key={item.id} className="relative group flex items-center">
                     <button
                       onClick={() => setActiveModule(item.id)}
-                      className={`w-full h-9 flex items-center ${
+                      className={`w-full h-8 flex items-center ${
                         isSidebarExpanded ? 'px-3 justify-start space-x-2.5' : 'justify-center'
-                      } rounded text-xs font-medium transition-all ${
+                      } rounded-sm text-xs font-medium transition-all ${
                         isActive 
-                          ? 'bg-[#0F172A] text-white shadow-sm font-semibold' 
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          ? 'bg-[#2A3A4A] text-white shadow-inner font-semibold border-l-2 border-[#0A6ED1]' 
+                          : 'text-slate-300 hover:bg-[#2A3A4A] hover:text-white border-l-2 border-transparent'
                       }`}
                     >
-                      <IconComponent className={`w-4 h-4 shrink-0 ${
-                        item.isAmber && !isActive ? 'text-amber-400' : ''
-                      }`} />
-
+                      <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#0A6ED1]' : ''}`} />
                       {isSidebarExpanded && (
                         <span className="truncate whitespace-nowrap">{item.label}</span>
                       )}
                     </button>
-
-                    {!isSidebarExpanded && (
-                      <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-[#0F172A] text-white text-xs font-medium rounded shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700">
-                        {item.label}
-                        <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-[#0F172A]"></div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </nav>
           </div>
 
-          {/* RODAPÉ DO MENU */}
-          <div className="p-1 border-t border-slate-700/60">
+          {/* RODAPÉ DA SIDEBAR */}
+          <div className="p-1 border-t border-[#2A3A4A]">
             <div className="relative group flex items-center">
               <button 
-                className={`w-full h-9 flex items-center ${
+                className={`w-full h-8 flex items-center ${
                   isSidebarExpanded ? 'px-3 justify-start space-x-2.5' : 'justify-center'
-                } rounded text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition`}
+                } rounded-sm text-xs font-medium text-slate-300 hover:bg-[#2A3A4A] hover:text-white transition`}
               >
                 <Settings className="w-4 h-4 shrink-0" />
                 {isSidebarExpanded && <span className="truncate">Configurações</span>}
               </button>
-
-              {!isSidebarExpanded && (
-                <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-[#0F172A] text-white text-xs font-medium rounded shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border border-slate-700">
-                  Configurações
-                  <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-[#0F172A]"></div>
-                </div>
-              )}
             </div>
           </div>
         </aside>
 
-        {/* ÁREA DE CONTEÚDO PRINCIPAL COM ANIMAÇÃO DE FADE-IN */}
-        <main className="flex-1 min-h-0 overflow-y-auto relative bg-[#F4F6F9] p-5 animate-in fade-in duration-300">
+        {/* CONTEÚDO DO DASHBOARD */}
+        <main className="flex-1 min-h-0 overflow-y-auto relative bg-[#F4F6F9] p-4 animate-in fade-in duration-300">
           {activeModule === 'dashboard' ? (
-            <div className="w-full max-w-[1600px] mx-auto space-y-5">
+            <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-4">
               
-              {/* TOPO: TÍTULO E ATALHOS RÁPIDOS */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              {/* HEADER DA PÁGINA */}
+              <div className="flex justify-between items-end border-b border-slate-300 pb-2">
                 <div>
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-blue-600" />
-                    Analytics Cloud | Painel de Controle de Devoluções & Avarias
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Monitoramento em tempo real do fluxo logístico de devoluções e perdas de estoque.</p>
+                  <h3 className="text-xl font-semibold text-slate-800 tracking-tight">Visão Geral de Operações</h3>
+    
                 </div>
-
-            
-              </div>
-
-              {/* CARDS DE KPI */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                    <Box className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 font-medium">Romaneios do Dia</p>
-                    <h3 className="text-2xl font-bold text-slate-800">238</h3>
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 font-medium">Transferidos (01 → 05)</p>
-                    <h3 className="text-2xl font-bold text-slate-800">1.420 un</h3>
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
-                    <AlertTriangle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 font-medium">Avarias Registradas</p>
-                    <h3 className="text-2xl font-bold text-amber-600">14</h3>
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
-                  <div className="p-3 bg-red-50 text-red-600 rounded-lg">
-                    <ShieldAlert className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 font-medium">Perdas / Descarte</p>
-                    <h3 className="text-2xl font-bold text-red-600">3 un</h3>
-                  </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600 bg-white px-3 py-1.5 rounded-sm border border-slate-300 shadow-sm">
+                  <Calendar className="w-3.5 h-3.5 text-[#0A6ED1]" />
+                  <span>Hoje, 11 de Nov</span>
                 </div>
               </div>
 
-              {/* GRÁFICOS ANALYTICS */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* GRID DE GRÁFICOS - LINHA 1 */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 
-                {/* GRÁFICO 1 */}
-                <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-blue-600" />
-                      Fluxo de Transferência Atômica (01-DISPONIVEL → 05-DEVOLUCAO)
-                    </h3>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Últimas 12 Horas</span>
+                {/* GRÁFICO DE PIZZA (DONUT) */}
+                <div className="bg-white rounded-sm shadow-sm border border-slate-200 p-4 col-span-1 flex flex-col">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Top 5 Motivos de Devolução</h3>
+                  
+                  <div className="flex-1 flex items-center justify-center relative">
+                    <svg viewBox="0 0 42 42" className="w-48 h-48 transform -rotate-90">
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#f1f5f9" strokeWidth="6"></circle>
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#0A6ED1" strokeWidth="6" strokeDasharray="40 60" strokeDashoffset="0"></circle>
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#10b981" strokeWidth="6" strokeDasharray="25 75" strokeDashoffset="-40"></circle>
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#f59e0b" strokeWidth="6" strokeDasharray="15 85" strokeDashoffset="-65"></circle>
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#8b5cf6" strokeWidth="6" strokeDasharray="10 90" strokeDashoffset="-80"></circle>
+                      <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#ef4444" strokeWidth="6" strokeDasharray="10 90" strokeDashoffset="-90"></circle>
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-slate-800">1.420</span>
+                      <span className="text-[10px] text-slate-500 uppercase">Total</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-4 text-[11px]">
+                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#0A6ED1]"></span> 352 - Falta</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span> 101 - Avaria Transp.</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500"></span> 351 - Perda</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500"></span> 103 - Vencimento</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500"></span> Outros</div>
+                  </div>
+                </div>
+
+                {/* GRÁFICO DE BARRAS HORIZONTAIS */}
+                <div className="bg-white rounded-sm shadow-sm border border-slate-200 p-4 col-span-2 flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-semibold text-slate-800">Volume de Transferências (01 → 05)</h3>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-sm">Últimas 8h</span>
                   </div>
                   
-                  <div className="h-64 w-full bg-slate-50/50 rounded-lg border border-slate-100 p-4 flex items-end justify-between gap-2">
-                    {[45, 80, 30, 95, 110, 60, 75, 130, 85, 90, 140, 95].map((val, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
-                        <div className="w-full flex gap-1 items-end justify-center h-full">
+                  <div className="flex-1 flex flex-col justify-around space-y-3">
+                    {[
+                      { label: '08:00 - 09:00', value: 120, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '09:00 - 10:00', value: 210, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '10:00 - 11:00', value: 85, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '11:00 - 12:00', value: 240, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '12:00 - 13:00', value: 150, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '13:00 - 14:00', value: 180, max: 250, color: 'bg-[#0A6ED1]' },
+                      { label: '14:00 - 15:00', value: 90, max: 250, color: 'bg-[#0A6ED1]' },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center text-[11px]">
+                        <div className="w-28 text-slate-500 font-mono">{item.label}</div>
+                        <div className="flex-1 h-4 bg-slate-100 rounded-sm overflow-hidden flex">
                           <div 
-                            style={{ height: `${val * 1.3}px` }} 
-                            className="w-1/2 bg-blue-600 group-hover:bg-blue-700 rounded-t transition-all"
-                            title={`Entrada 05-DEVOLUCAO: ${val}`}
-                          ></div>
-                          <div 
-                            style={{ height: `${(val * 0.8)}px` }} 
-                            className="w-1/2 bg-slate-300 group-hover:bg-slate-400 rounded-t transition-all"
-                            title={`Baixa 01-DISPONIVEL: ${Math.round(val * 0.8)}`}
+                            className={`${item.color} h-full rounded-sm transition-all duration-500 hover:opacity-80`}
+                            style={{ width: `${(item.value / item.max) * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-[9px] font-mono text-slate-400 mt-1">{idx + 1}h</span>
+                        <div className="w-12 text-right font-medium text-slate-700">{item.value}</div>
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-center gap-6 mt-4 text-xs font-medium text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 bg-blue-600 rounded-sm"></span>
-                      <span>Entrada (05-DEVOLUCAO)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 bg-slate-300 rounded-sm"></span>
-                      <span>Baixa (01-DISPONIVEL)</span>
-                    </div>
+              {/* GRID DE GRÁFICOS - LINHA 2 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                
+                {/* BARRAS HORIZONTAIS AGRUPADAS */}
+                <div className="bg-white rounded-sm shadow-sm border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Entradas por Cliente (Top 4)</h3>
+                  <div className="space-y-4">
+                    {[
+                      { name: 'GAM São José', normal: 85, avaria: 15 },
+                      { name: 'GAM Matriz', normal: 70, avaria: 30 },
+                      { name: 'Distribuidora ABC', normal: 95, avaria: 5 },
+                      { name: 'Farmácias Silva', normal: 60, avaria: 40 },
+                    ].map((client, idx) => (
+                      <div key={idx} className="text-[11px]">
+                        <div className="mb-1 text-slate-600 font-medium">{client.name}</div>
+                        <div className="flex h-3 rounded-sm overflow-hidden">
+                          <div className="bg-[#0A6ED1] hover:opacity-80 transition-all" style={{ width: `${client.normal}%` }} title="Boa"></div>
+                          <div className="bg-red-500 hover:opacity-80 transition-all" style={{ width: `${client.avaria}%` }} title="Avaria"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-4 mt-4 text-[10px] text-slate-500">
+                     <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-[#0A6ED1]"></span> Mercadoria Boa</div>
+                     <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-500"></span> Avaria</div>
                   </div>
                 </div>
 
-                {/* GRÁFICO 2 */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
-                      Distribuição de Avarias & Perdas
-                    </h3>
-                    
-                    <div className="space-y-4 text-xs">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium text-slate-600">101 - Avaria de Transporte</span>
-                          <span className="font-bold text-slate-800">58%</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-amber-500 h-full w-[58%]"></div>
-                        </div>
-                      </div>
+                {/* PROCESSO FLOW */}
+                <div className="bg-white rounded-sm shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Fluxo Operacional WMS</h3>
+                  
+                  <div className="flex items-center justify-between text-center relative px-4">
+                    <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-200 z-0"></div>
 
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium text-slate-600">102 - Pedido em Duplicidade</span>
-                          <span className="font-bold text-slate-800">24%</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full w-[24%]"></div>
-                        </div>
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 text-[#0A6ED1] flex items-center justify-center border-2 border-white shadow-sm">
+                        <Box className="w-5 h-5" />
                       </div>
+                      <span className="text-[10px] font-medium text-slate-600">Recebimento</span>
+                    </div>
 
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium text-slate-600">103 - Validade Próxima (FEFO)</span>
-                          <span className="font-bold text-slate-800">12%</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-indigo-500 h-full w-[12%]"></div>
-                        </div>
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border-2 border-white shadow-sm">
+                        <Search className="w-5 h-5" />
                       </div>
+                      <span className="text-[10px] font-medium text-slate-600">Conferência</span>
+                    </div>
 
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium text-slate-600">104 - Perda / Descarte Total</span>
-                          <span className="font-bold text-red-600">6%</span>
-                        </div>
-                        <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                          <div className="bg-red-500 h-full w-[6%]"></div>
-                        </div>
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center border-2 border-white shadow-sm">
+                        <ArrowRightLeft className="w-5 h-5" />
                       </div>
+                      <span className="text-[10px] font-medium text-slate-600">Transf. Estoque</span>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border-2 border-white shadow-sm">
+                        <PackageCheck className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-medium text-slate-600">Finalizado</span>
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setActiveModule('returns')}
-                    className="w-full mt-6 py-2 bg-slate-50 hover:bg-slate-100 text-blue-600 font-semibold text-xs rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                  >
-                    <span>Gerenciar Romaneios e Avarias</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="mt-6 flex justify-end">
+                     <button 
+                        onClick={() => setActiveModule('returns')}
+                        className="text-xs font-semibold text-[#0A6ED1] hover:text-[#0854A0] flex items-center gap-1 transition"
+                      >
+                        Acessar Painel de Devoluções <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                  </div>
                 </div>
 
               </div>
@@ -403,7 +371,7 @@ export default function App() {
             <StockManager onBack={() => setActiveModule('dashboard')} />
           ) : (
             <div className="p-8 text-center text-slate-500 font-medium bg-white rounded-xl shadow-sm border border-slate-200">
-              Módulo em desenvolvimento ou integrado ao S/4HANA.
+              Módulo em desenvolvimento ou Aguardando integração
             </div>
           )}
         </main>
