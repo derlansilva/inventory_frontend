@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle, Copy, Check, ArrowLeft, Truck, Loader2, AlertTriangle ,RefreshCw } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle, Copy, Check, ArrowLeft, Truck, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { apiServices } from '../../services/apiServices';
 
 interface InvoiceData {
@@ -28,26 +28,25 @@ export default function PendingManifests() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const invoiceToUploadRef = useRef<string | null>(null);
 
-    const fetchManifests = async () => {
+  const fetchManifests = async () => {
     try {
       setIsLoading(true);
       const data = await apiServices.getReceivingManifests();
       
-      console.log("DADOS DO BACKEND:", data); // Olhe isso no F12 do navegador!
-
-      const formattedData: ManifestData[] = data.map((m: any) => {
-        return {
-          id: String(m.id || Math.random()),
-          manifestCode: m.manifestCode || 'GAM-NO-CODE',
-          date: m.date ? new Date(m.date).toLocaleString('pt-BR') : '-',
-          volumes: m.volumes || 0,
-          invoices: m.invoices || []
-        };
-      });
+      const formattedData: ManifestData[] = data.map((m: any) => ({
+        id: m.id.toString(),
+        manifestCode: m.manifestCode || 'GAM-NO-CODE',
+        date: new Date(m.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+        volumes: m.volumes || 0,
+        invoices: m.invoices ? m.invoices.map((inv: any) => ({
+          invoiceNumber: inv.invoiceNumber,
+          status: inv.status
+        })) : []
+      }));
 
       setManifests(formattedData);
     } catch (error: any) {
-      console.error("Erro na API:", error);
+      console.error("Error fetching manifests:", error);
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +105,7 @@ export default function PendingManifests() {
         if (cleanXmlInvoice !== cleanExpectedInvoice) {
           setAlertMessage({ 
             type: 'error', 
-            text: `Error: The XML belongs to Invoice ${xmlInvoiceNumber}, but you selected Invoice ${expectedInvoice}.` 
+            text: `Erro: O XML é da NF ${xmlInvoiceNumber}, mas você selecionou a NF ${expectedInvoice}.` 
           });
           setUploadingInvoice(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -119,13 +118,13 @@ export default function PendingManifests() {
           items: items
         };
 
-        // AQUI ESTÁ A CHAMADA AJUSTADA (Apenas Manifesto e NF)
         await apiServices.uploadXml(
           selectedManifest.manifestCode, 
           expectedInvoice, 
           payload
         );
 
+        // Atualiza a tela para mostrar como importado
         const updatedInvoices = selectedManifest.invoices.map(inv => 
           inv.invoiceNumber === expectedInvoice ? { ...inv, status: 'IMPORTED' as const } : inv
         );
@@ -139,7 +138,7 @@ export default function PendingManifests() {
         setAlertMessage({ type: 'success', text: `XML da NF ${xmlInvoiceNumber} (${items.length} itens) enviado com sucesso!` });
         
       } catch (error: any) {
-        setAlertMessage({ type: 'error', text: error.response?.data || 'Error reading or uploading XML.' });
+        setAlertMessage({ type: 'error', text: error.response?.data || 'Erro ao ler ou enviar o XML.' });
       } finally {
         setUploadingInvoice(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -149,68 +148,72 @@ export default function PendingManifests() {
   };
 
   // ==========================================
-  // SCREEN 1: MANIFEST LIST
+  // TELA 1: LISTA DE MANIFESTOS
   // ==========================================
   if (!selectedManifest) {
     return (
       <div className="w-full h-[calc(100vh-180px)] flex flex-col bg-slate-50 p-4 overflow-hidden">
         <div className="max-w-[1200px] w-full mx-auto flex flex-col flex-1 min-h-0 space-y-3">
           
+          {/* CABEÇALHO DA TELA */}
           <div className="bg-white p-3 px-4 rounded-lg shadow-sm border border-slate-200 flex items-center justify-between shrink-0">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-              <Truck className="w-4 h-4 text-[#002B49]" />
-              Manifesto de Recebimento
+              <Truck className="w-4 h-4 text-[#354A5F]" />
+              Manifestos Pendentes (Aguardando XML)
             </h3>
-      <button 
-  onClick={fetchManifests} 
-  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#002B49] hover:bg-[#003d66] px-3 py-1.5 rounded-md shadow-sm active:scale-95 transition-all"
->
-  <RefreshCw className="w-3.5 h-3.5" />
-  
-</button>
+            <button 
+              onClick={fetchManifests} 
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#354A5F] hover:bg-[#2A3A4A] border border-[#2A3A4A] px-3 py-1.5 rounded shadow-sm transition-all"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              ATUALIZAR LISTA
+            </button>
           </div>
 
+          {/* TABELA */}
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="overflow-y-auto flex-1 relative">
               
               {isLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-20">
-                  <Loader2 className="w-8 h-8 text-[#002B49] animate-spin mb-2" />
-                  <p className="text-xs font-bold text-slate-500">atualizar...</p>
+                  <Loader2 className="w-8 h-8 text-[#354A5F] animate-spin mb-2" />
+                  <p className="text-xs font-bold text-slate-500">Buscando manifestos pendentes...</p>
                 </div>
               )}
 
               <table className="w-full text-left text-xs relative">
-                <thead className="bg-[#002B49] text-white sticky top-0 z-10 shadow-sm">
+                <thead className="bg-[#354A5F] text-white sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Manifest Code</th>
-                    <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-center w-32">Volumes</th>
-                    <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-center w-32">Total Invoices</th>
-                    <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-right w-40">Action</th>
+                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Código Manifesto</th>
+                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-32">Volumes</th>
+                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-32">NFs Pendentes</th>
+                    <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-right w-40">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {manifests.map((manifest) => (
                     <tr 
                       key={manifest.id} 
-                      className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
                       onClick={() => setSelectedManifest(manifest)}
                     >
-                      <td className="px-4 py-2.5">
-                        <div className="font-mono font-bold text-[#002B49] text-[13px] group-hover:text-blue-700">{manifest.manifestCode}</div>
+                      <td className="px-4 py-3">
+                        <div className="font-mono font-bold text-[#354A5F] text-[13px] group-hover:text-blue-700">{manifest.manifestCode}</div>
                         <div className="text-[10px] text-slate-400 font-mono">{manifest.date}</div>
                       </td>
-                      <td className="px-4 py-2.5 text-center">
+                      <td className="px-4 py-3 text-center">
                         <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded border border-slate-200 text-[10px]">
                           {manifest.volumes} cx
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-center font-bold text-slate-600 text-[11px]">
-                        {manifest.invoices.length} invoices
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded border border-amber-200 text-[10px]">
+                          {manifest.invoices.length} pendentes
+                        </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button className="text-[#002B49] font-bold text-[10px] group-hover:underline uppercase tracking-wide">
-                          Open &rarr;
+                      <td className="px-4 py-3 text-right">
+                        <button className="text-[#354A5F] font-bold text-[10px] group-hover:underline uppercase tracking-wide flex items-center justify-end gap-1 w-full">
+                          Abrir <span className="text-lg leading-none">&rarr;</span>
                         </button>
                       </td>
                     </tr>
@@ -218,8 +221,12 @@ export default function PendingManifests() {
 
                   {!isLoading && manifests.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-12 text-center text-slate-400">
-                        No pending manifests at the moment.
+                      <td colSpan={4} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
+                          <p className="font-medium text-sm">Tudo em dia!</p>
+                          <p className="text-xs">Nenhum manifesto pendente de importação no momento.</p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -233,7 +240,7 @@ export default function PendingManifests() {
   }
 
   // ==========================================
-  // SCREEN 2: INVOICE DETAILS AND UPLOAD
+  // TELA 2: DETALHES E UPLOAD
   // ==========================================
   return (
     <div className="w-full h-[calc(100vh-180px)] flex flex-col bg-slate-50 p-4 overflow-hidden">
@@ -246,9 +253,9 @@ export default function PendingManifests() {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
-                Manifest: <span className="text-[#002B49] font-mono text-base">{selectedManifest.manifestCode}</span>
-              </h3>
+              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
+                Manifesto: <span className="text-[#354A5F] font-mono text-base">{selectedManifest.manifestCode}</span>
+              </h2>
             </div>
           </div>
         </div>
@@ -265,47 +272,47 @@ export default function PendingManifests() {
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="overflow-y-auto flex-1">
             <table className="w-full text-left text-xs relative">
-              <thead className="bg-[#002B49] text-white sticky top-0 z-10 shadow-sm">
+              <thead className="bg-[#354A5F] text-white sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px]">Invoice Number</th>
-                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-center w-32">Status</th>
-                  <th className="px-4 py-2.5 font-bold uppercase tracking-wider text-[10px] text-center w-40">Action</th>
+                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px]">Número da Nota Fiscal</th>
+                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-32">Status</th>
+                  <th className="px-4 py-3 font-bold uppercase tracking-wider text-[10px] text-center w-40">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {selectedManifest.invoices.map((invoice) => (
                   <tr key={invoice.invoiceNumber} className="hover:bg-blue-50/50 transition-colors">
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="bg-pink-50 border border-pink-200 px-2 py-1 rounded text-pink-700 font-mono font-bold text-[11px]">
+                        <div className="bg-slate-100 border border-slate-200 px-2 py-1 rounded text-slate-700 font-mono font-bold text-[11px]">
                           {invoice.invoiceNumber}
                         </div>
-                        <button onClick={() => handleCopyInvoice(invoice.invoiceNumber)} title="Copy Invoice Number" className="text-slate-400 hover:text-[#002B49] transition-colors p-1">
+                        <button onClick={() => handleCopyInvoice(invoice.invoiceNumber)} title="Copy Invoice Number" className="text-slate-400 hover:text-[#354A5F] transition-colors p-1">
                           {copiedInvoice === invoice.invoiceNumber ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-4 py-3 text-center">
                       {invoice.status === 'WAITING_XML' ? (
                         <span className="inline-flex items-center gap-1 text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded text-[10px] border border-amber-200">
-                          <AlertCircle className="w-3 h-3" /> Pending
+                          <AlertCircle className="w-3 h-3" /> Pendente
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px] border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3" /> Imported
+                          <CheckCircle2 className="w-3 h-3" /> Importado
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-4 py-3 text-center">
                       <button 
                         onClick={() => triggerUpload(invoice.invoiceNumber)}
                         disabled={invoice.status === 'IMPORTED' || uploadingInvoice === invoice.invoiceNumber}
-                        className="bg-[#002B49] hover:bg-[#003d66] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded font-bold flex items-center justify-center space-x-1.5 mx-auto transition-all shadow-sm text-[10px] w-32"
+                        className="bg-[#354A5F] hover:bg-[#2A3A4A] disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded font-bold flex items-center justify-center space-x-1.5 mx-auto transition-all shadow-sm text-[10px] w-32"
                       >
                         {uploadingInvoice === invoice.invoiceNumber ? (
-                          <><span className="animate-spin border-2 border-white border-t-transparent rounded-full w-3 h-3"></span><span>Reading...</span></>
+                          <><span className="animate-spin border-2 border-white border-t-transparent rounded-full w-3 h-3"></span><span>Lendo...</span></>
                         ) : (
-                          <><UploadCloud className="w-3.5 h-3.5" /><span>{invoice.status === 'IMPORTED' ? 'Imported' : 'Upload XML'}</span></>
+                          <><UploadCloud className="w-3.5 h-3.5" /><span>{invoice.status === 'IMPORTED' ? 'Importado' : 'Upload XML'}</span></>
                         )}
                       </button>
                     </td>

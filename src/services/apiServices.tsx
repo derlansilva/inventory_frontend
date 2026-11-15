@@ -84,5 +84,14 @@ uploadXml: async (manifestCode: string, invoiceNumber: string, payload: any) => 
     return response.data;
   },
 
-  
+  getManifestsWithFilters: async (filters?: { search?: string, status?: string, date?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.date) params.append('date', filters.date);
+
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const response = await api.get(`/receiving/manifests/filter${queryString}`);
+    return response.data;
+},
 };

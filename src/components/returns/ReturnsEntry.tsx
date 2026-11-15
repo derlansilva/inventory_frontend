@@ -277,7 +277,7 @@ export default function ReturnsEntry() {
                   </div>
                 </div>
                 <div className="col-span-4 flex flex-col items-start mt-1">
-                  <label className="text-[10px] font-bold text-slate-600 uppercase mb-1">Romaneio (SSW)</label>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase mb-1">Romaneio</label>
                   <input type="text" value={manifesto} readOnly className="w-full bg-slate-100 border border-slate-300 px-2 py-1 rounded font-mono text-slate-700 outline-none text-xs font-semibold h-6" placeholder="REC-..." />
                 </div>
                 <div className="col-span-4 flex flex-col items-start mt-1">

@@ -30,7 +30,7 @@ export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
   const menuOptions = [
     { id: 'lancamento', label: 'Lançamento de Devoluções', icon: PackagePlus },
     { id: 'recebimento', label: 'Recebimento Cego (XMLs)', icon: UploadCloud },
-    { id: 'sac', label: 'Central SAC & Histórico', icon: Headphones },
+    { id: 'sac', label: 'Central Romaneio & Histórico', icon: Headphones },
   ];
 
   const ActiveIcon = menuOptions.find(o => o.id === activeSubTab)?.icon || Box;
@@ -58,7 +58,7 @@ export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
 
           <div className="flex items-center space-x-2">
             <span className="font-bold text-sm tracking-wide text-[#002B49]">
-              GESTÃO DE DEVOLUÇÕES & SAC
+              GESTÃO DE DEVOLUÇÕES
             </span>
             <span className="text-[10px] hidden md:inline font-medium border-l border-gray-400 pl-2 text-gray-500">
               Tratamento de recusas, avarias e central de chamados
