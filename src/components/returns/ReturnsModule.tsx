@@ -53,7 +53,7 @@ export default function ReturnsModule({ onBack }: ReturnsModuleProps) {
           </button>
           
           <span className="bg-[#1E4D6B] text-white px-2 py-0.5 rounded font-mono font-bold text-[10px] tracking-wider border border-blue-800">
-            ZMM_RET
+            101
           </span>
 
           <div className="flex items-center space-x-2">
