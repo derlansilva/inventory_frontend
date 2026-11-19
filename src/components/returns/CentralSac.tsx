@@ -152,7 +152,7 @@ export default function CentralSac() {
       <SapAlertModal isOpen={alertOpen} message={alertMessage} type={alertType} onClose={() => setAlertOpen(false)} />
 
       {/* CONTAINER PRINCIPAL */}
-      <div className="bg-white flex-1 flex flex-col min-h-0 border border-gray-400 shadow-sm overflow-hidden rounded-none">
+      <div className=" w-full max-w-[1400px] mx-auto h-full bg-white  flex-1 flex flex-col min-h-0 border border-gray-400 shadow-sm overflow-hidden rounded-none">
         
         {/* BARRA DE TÍTULO */}
         <div className="bg-[#3b6ea5] text-white px-2 py-1 flex items-center justify-between shrink-0 border-b border-gray-500">

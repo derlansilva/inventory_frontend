@@ -55,7 +55,7 @@ export default function StockManager({ onBack }: { onBack: () => void }) {
     <div className="bg-[#E9ECEF] w-full h-full p-2 font-sans text-xs text-slate-800 flex flex-col overflow-hidden">
       
       {/* CONTAINER PRINCIPAL LARGO (Ocupando quase 100% da largura com um respiro mínimo nas laterais) */}
-      <div className="bg-white w-[90%] mx-auto flex-1 flex flex-col min-h-0 border border-gray-400 shadow-sm overflow-hidden rounded-none">
+      <div className="bg-white w-full max-w-[1400px] mx-auto h-full mx-auto flex-1 flex flex-col min-h-0 border border-gray-400 shadow-sm overflow-hidden rounded-none">
         
         {/* BARRA DE TÍTULO */}
         <div className="bg-[#3b6ea5] text-white px-2 py-1 flex items-center justify-between shrink-0 border-b border-gray-500">
